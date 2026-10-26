@@ -1,0 +1,36 @@
+server:
+  address: ${BIND_ADDRESS:127.0.0.1}
+  port: ${PORT:8080}
+  error:
+    include-message: never
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:h2:file:./data/portal;MODE=MySQL;DATABASE_TO_LOWER=TRUE}
+    username: ${DB_USER:sa}
+    password: ${DB_PASSWORD:}
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
+  jackson:
+    time-zone: Asia/Shanghai
+app:
+  origin: ${APP_ORIGIN:http://localhost:5173}
+  production: ${APP_PRODUCTION:false}
+  secure-cookie: ${SECURE_COOKIE:false}
+  uploads: ${UPLOAD_DIR:./uploads}
+  bootstrap-user: ${BOOTSTRAP_USER:}
+  bootstrap-password: ${BOOTSTRAP_PASSWORD:}
+  demo: ${DEMO_DATA:false}
+  center:
+    enabled: ${CENTER_ENABLED:false}
+    base-url: ${CENTER_BASE_URL:}
+    client-id: ${CENTER_CLIENT_ID:}
+    client-secret: ${CENTER_CLIENT_SECRET:}
+    callback: ${CENTER_CALLBACK:}
+    authorization-prefix: ${CENTER_AUTH_PREFIX:}
+    user-id-path: ${CENTER_USER_ID_PATH:id}
+    user-name-path: ${CENTER_USER_NAME_PATH:username}
+    encryption-key: ${CENTER_STORAGE_KEY:}
+    logout-key: ${CENTER_LOGOUT_KEY:}
+    logout-ips: ${CENTER_LOGOUT_IPS:}

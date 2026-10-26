@@ -1,0 +1,15 @@
+node_modules/
+dist/
+target/
+.env
+.runtime/
+data/
+uploads/
+*.log
+*.local
+
+# Windows-only local launchers; keep them on this PC, not in the Linux repository.
+/Start-Local.ps1
+/Stop-Local.ps1
+/启动项目.cmd
+/停止项目.cmd

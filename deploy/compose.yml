@@ -1,0 +1,55 @@
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: materials
+      MYSQL_USER: materials
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysql -uroot -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+  backend:
+    build: ../backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      BIND_ADDRESS: 0.0.0.0
+      APP_PRODUCTION: "true"
+      DEMO_DATA: "false"
+      SECURE_COOKIE: "true"
+      DB_URL: jdbc:mysql://db:3306/materials?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+      DB_USER: materials
+      DB_PASSWORD: ${DB_PASSWORD}
+      APP_ORIGIN: ${APP_ORIGIN:?Set public HTTPS origin}
+      BOOTSTRAP_USER: ${BOOTSTRAP_USER:-operator}
+      BOOTSTRAP_PASSWORD: ${BOOTSTRAP_PASSWORD:?Set bootstrap password}
+      CENTER_ENABLED: ${CENTER_ENABLED:-false}
+      CENTER_BASE_URL: ${CENTER_BASE_URL:-}
+      CENTER_CLIENT_ID: ${CENTER_CLIENT_ID:-}
+      CENTER_CLIENT_SECRET: ${CENTER_CLIENT_SECRET:-}
+      CENTER_CALLBACK: ${CENTER_CALLBACK:-}
+      CENTER_AUTH_PREFIX: ${CENTER_AUTH_PREFIX:-}
+      CENTER_USER_ID_PATH: ${CENTER_USER_ID_PATH:-id}
+      CENTER_USER_NAME_PATH: ${CENTER_USER_NAME_PATH:-username}
+      CENTER_STORAGE_KEY: ${CENTER_STORAGE_KEY:-}
+      CENTER_LOGOUT_KEY: ${CENTER_LOGOUT_KEY:-}
+      CENTER_LOGOUT_IPS: ${CENTER_LOGOUT_IPS:-}
+    volumes:
+      - uploads:/app/uploads
+    restart: unless-stopped
+  web:
+    build: ../frontend
+    depends_on: [backend]
+    ports: ["127.0.0.1:8090:80"]
+    restart: unless-stopped
+volumes:
+  mysql-data:
+  uploads:
