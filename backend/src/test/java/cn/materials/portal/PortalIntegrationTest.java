@@ -114,6 +114,178 @@ class PortalIntegrationTest {
   }
 
   @Test
+  void homepagePartnerImagesAndDepartmentsFollowSavedSiteConfiguration()
+    throws Exception {
+    var operator = login("operator", "Test-Operator-2026!");
+    var previous = s.one("SELECT * FROM site_settings WHERE id=1");
+    var image = new java.awt.image.BufferedImage(
+      16,
+      4,
+      java.awt.image.BufferedImage.TYPE_INT_RGB
+    );
+    var bytes = new java.io.ByteArrayOutputStream();
+    assertTrue(javax.imageio.ImageIO.write(image, "png", bytes));
+    var media = uploadMedia(
+      operator,
+      "partner-logo.png",
+      "image/png",
+      bytes.toByteArray()
+    );
+    String url = str(media, "url");
+    var secondBanner = uploadMedia(
+      operator,
+      "second-banner.png",
+      "image/png",
+      bytes.toByteArray()
+    );
+    String secondUrl = str(secondBanner, "url");
+    mvc.perform(get(url)).andExpect(status().isNotFound());
+    mvc.perform(get(url).cookie(operator.cookie())).andExpect(status().isOk());
+    try {
+      var settings = s.decode(previous.get("payload"));
+      settings.put("version", previous.get("version"));
+      settings.put("registrationNumber", "测试备案号（验收）");
+      settings.put("registrationUrl", "https://example.org/registration");
+      settings.put(
+        "banners",
+        List.of(
+          Map.of(
+            "title",
+            "第一张轮播",
+            "description",
+            "第一张说明",
+            "image",
+            url,
+            "eyebrow",
+            "独立标签",
+            "buttonText",
+            "查看专题",
+            "url",
+            "/columns/news"
+          ),
+          Map.of(
+            "title",
+            "第二张轮播",
+            "description",
+            "第二张说明",
+            "image",
+            secondUrl
+          )
+        )
+      );
+      settings.put(
+        "partners",
+        List.of(
+          Map.of(
+            "title",
+            "测试建设单位",
+            "image",
+            url,
+            "url",
+            "https://example.com",
+            "description",
+            ""
+          )
+        )
+      );
+      settings.put(
+        "departments",
+        List.of(
+          Map.of(
+            "title",
+            "测试上级部门",
+            "url",
+            "https://example.org",
+            "image",
+            "",
+            "description",
+            ""
+          )
+        )
+      );
+      var result = mvc
+        .perform(
+          put("/api/operator/site")
+            .cookie(operator.cookie())
+            .header("Origin", "http://localhost:5173")
+            .header("X-CSRF-Token", operator.csrf())
+            .contentType("application/json")
+            .content(s.encode(settings))
+        )
+        .andExpect(status().isOk())
+        .andReturn();
+      mvc
+        .perform(get("/api/public/site"))
+        .andExpect(jsonPath("$.partners[0].image").value(url))
+        .andExpect(jsonPath("$.banners[0].eyebrow").value("独立标签"))
+        .andExpect(jsonPath("$.banners[0].buttonText").value("查看专题"))
+        .andExpect(jsonPath("$.banners[0].image").value(url))
+        .andExpect(jsonPath("$.banners[1].image").value(secondUrl))
+        .andExpect(jsonPath("$.banners[1].title").value("第二张轮播"))
+        .andExpect(jsonPath("$.banners[1].buttonText").value("探索更多"))
+        .andExpect(jsonPath("$.registrationNumber").value("测试备案号（验收）"))
+        .andExpect(
+          jsonPath("$.registrationUrl").value(
+            "https://example.org/registration"
+          )
+        )
+        .andExpect(jsonPath("$.departments[0].title").value("测试上级部门"));
+      mvc
+        .perform(get(url))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType("image/png"));
+      var saved = s.decode(result.getResponse().getContentAsString());
+      saved.put("partners", List.of());
+      saved.put("banners", List.of());
+      mvc
+        .perform(
+          put("/api/operator/site")
+            .cookie(operator.cookie())
+            .header("Origin", "http://localhost:5173")
+            .header("X-CSRF-Token", operator.csrf())
+            .contentType("application/json")
+            .content(s.encode(saved))
+        )
+        .andExpect(status().isOk());
+      mvc.perform(get(url)).andExpect(status().isNotFound());
+      mvc.perform(get(secondUrl)).andExpect(status().isNotFound());
+      saved.put("version", ((Number) saved.get("version")).intValue() + 1);
+      saved.put(
+        "departments",
+        List.of(Map.of("title", "不安全链接", "url", "javascript:alert(1)"))
+      );
+      mvc
+        .perform(
+          put("/api/operator/site")
+            .cookie(operator.cookie())
+            .header("Origin", "http://localhost:5173")
+            .header("X-CSRF-Token", operator.csrf())
+            .contentType("application/json")
+            .content(s.encode(saved))
+        )
+        .andExpect(status().isBadRequest());
+      saved.put("departments", List.of());
+      saved.put("registrationUrl", "javascript:alert(1)");
+      mvc
+        .perform(
+          put("/api/operator/site")
+            .cookie(operator.cookie())
+            .header("Origin", "http://localhost:5173")
+            .header("X-CSRF-Token", operator.csrf())
+            .contentType("application/json")
+            .content(s.encode(saved))
+        )
+        .andExpect(status().isBadRequest());
+    } finally {
+      s.update(
+        "UPDATE site_settings SET payload=?,version=? WHERE id=1",
+        previous.get("payload"),
+        previous.get("version")
+      );
+    }
+  }
+
+  @Test
   void optionalSummariesProduceExcerptsWithoutChangingStoredContent()
     throws Exception {
     var operator = login("operator", "Test-Operator-2026!");
@@ -195,7 +367,8 @@ class PortalIntegrationTest {
   }
 
   @Test
-  void bodyCoverAndAttachmentImagesFollowPublishedRevision() throws Exception {
+  void bodyCoverHomeAndAttachmentImagesFollowPublishedRevision()
+    throws Exception {
     var operator = login("operator", "Test-Operator-2026!");
     var image = new java.awt.image.BufferedImage(
       2,
@@ -222,7 +395,13 @@ class PortalIntegrationTest {
       "image/png",
       bytes.toByteArray()
     );
-    var images = List.of(cover, inline, attachment);
+    var homeImage = uploadMedia(
+      operator,
+      "homepage.png",
+      "image/png",
+      bytes.toByteArray()
+    );
+    var images = List.of(cover, inline, attachment, homeImage);
     for (var media : images) {
       mvc.perform(get(str(media, "url"))).andExpect(status().isNotFound());
     }
@@ -231,6 +410,8 @@ class PortalIntegrationTest {
       .andExpect(status().isOk());
     var body = article("发布图片链路测试");
     body.put("cover", cover.get("url"));
+    body.put("homeImage", homeImage.get("url"));
+    body.put("recommended", true);
     body.put(
       "body",
       "<p>正文图片</p><img src=\"" +
@@ -246,6 +427,7 @@ class PortalIntegrationTest {
       .andReturn();
     var draft = s.decode(result.getResponse().getContentAsString());
     String id = str(draft, "id");
+    assertEquals(homeImage.get("url"), draft.get("homeImage"));
     var html = org.jsoup.Jsoup.parse(str(draft, "body"));
     assertEquals(1, html.select("img").size());
     assertEquals(inline.get("url"), html.selectFirst("img").attr("src"));
@@ -272,8 +454,17 @@ class PortalIntegrationTest {
         );
     }
 
+    mvc
+      .perform(get("/api/public/home"))
+      .andExpect(
+        jsonPath("$.items[?(@.id == '" + id + "')].homeImage").value(
+          org.hamcrest.Matchers.contains(homeImage.get("url"))
+        )
+      );
+
     draft.put("version", 2);
     draft.put("cover", "");
+    draft.put("homeImage", "");
     draft.put("body", "<p>尚未发布的纯文字版本</p>");
     draft.put("attachments", List.of());
     mvc
@@ -289,6 +480,9 @@ class PortalIntegrationTest {
     for (var media : images) {
       mvc.perform(get(str(media, "url"))).andExpect(status().isOk());
     }
+    mvc
+      .perform(get("/api/public/contents/" + id))
+      .andExpect(jsonPath("$.homeImage").value(homeImage.get("url")));
     mvc
       .perform(
         write(
@@ -318,6 +512,15 @@ class PortalIntegrationTest {
       .perform(write("/api/operator/contents", operator, body))
       .andExpect(status().isBadRequest());
     body.put("cover", "");
+    body.put("homeImage", media.get("url"));
+    mvc
+      .perform(write("/api/operator/contents", operator, body))
+      .andExpect(status().isBadRequest());
+    body.put("homeImage", "https://example.org/image.png");
+    mvc
+      .perform(write("/api/operator/contents", operator, body))
+      .andExpect(status().isBadRequest());
+    body.put("homeImage", "");
     body.put("body", "<p>内容</p><img src=\"" + media.get("url") + "\">");
     mvc
       .perform(write("/api/operator/contents", operator, body))

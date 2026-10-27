@@ -1,0 +1,264 @@
+/* Shared dimensions for every public page; management pages keep their layout. */
+.portal-shell {
+  --portal-content-width: min(1680px, 88%);
+  --home-blue: #185dbb;
+  --home-navy: #0b3e83;
+  color: #333;
+  background: #fff;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.portal-shell > main {
+  flex: 1;
+  min-width: 0;
+}
+.portal-shell .container {
+  width: var(--portal-content-width);
+}
+.portal-shell .brand-bar {
+  min-height: 106px;
+  height: auto;
+  gap: 24px;
+  padding-block: 16px;
+}
+.portal-shell .brand {
+  min-width: 0;
+  gap: 20px;
+}
+.portal-shell .portal-logo {
+  width: 256px;
+}
+.portal-shell .brand strong {
+  color: #282e35;
+  font-size: clamp(22px, 1.8vw, 32px);
+  letter-spacing: 0;
+}
+.portal-shell .brand small {
+  color: #626971;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+.portal-shell .navigation {
+  background: var(--home-navy);
+}
+.portal-shell .nav-items {
+  min-height: 66px;
+}
+.portal-shell .nav-items > a,
+.portal-shell .nav-item > a {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 19px 22px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.portal-shell .nav-item,
+.portal-shell .nav-items > a {
+  flex: 1;
+}
+.portal-shell .nav-items > a {
+  height: auto;
+}
+.portal-shell .nav-items .router-link-active,
+.portal-shell .nav-item > a.active-section,
+.portal-shell .nav-item:hover > a {
+  background: #1b60bc;
+}
+.portal-shell .dropdown {
+  z-index: 20;
+  font-size: 16px;
+}
+.portal-shell .collection-banner {
+  padding: 38px 0;
+}
+.portal-shell .page-banner h1 {
+  font-size: clamp(28px, 2vw, 36px);
+}
+.portal-shell .collection-heading p {
+  font-size: 16px;
+}
+.portal-shell .breadcrumbs,
+.portal-shell .back-to-list {
+  font-size: 14px;
+}
+.portal-shell .category-filters a {
+  padding: 12px 20px;
+  font-size: 16px;
+}
+.portal-shell .content-panel > .empty {
+  font-size: 16px;
+}
+.portal-shell .list-copy p {
+  font-size: 16px;
+  line-height: 1.8;
+}
+.portal-shell .list-copy time {
+  font-size: 14px;
+}
+.portal-footer {
+  padding: 30px 0;
+  color: #cad4e1;
+  background: #03162e;
+}
+.portal-footer-inner {
+  display: flex;
+  align-items: center;
+  gap: 50px;
+}
+.portal-footer-brand {
+  display: flex;
+  flex-shrink: 0;
+  max-width: 100%;
+}
+.portal-footer-brand img {
+  width: 342px;
+  max-width: 100%;
+  height: auto;
+}
+.portal-footer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-size: 14px;
+  min-width: 0;
+}
+.portal-footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.portal-footer-legal a:hover {
+  text-decoration: underline;
+}
+.portal-footer .visit-count {
+  font-size: 16px;
+}
+.portal-footer .visit-count b {
+  color: #e5efff;
+  font-weight: 400;
+}
+.portal-footer .visit-count svg {
+  width: 20px;
+  height: 20px;
+}
+@media (min-width: 1700px) {
+  .portal-shell .brand-bar {
+    min-height: 120px;
+  }
+  .portal-shell .nav-items {
+    min-height: 76px;
+  }
+  .portal-shell .nav-items > a,
+  .portal-shell .nav-item > a {
+    font-size: 23px;
+  }
+}
+@media (max-width: 1200px) {
+  .portal-shell {
+    --portal-content-width: 92%;
+  }
+  .portal-shell .brand {
+    gap: 12px;
+  }
+  .portal-shell .portal-logo {
+    width: 220px;
+  }
+  .portal-shell .nav-items > a,
+  .portal-shell .nav-item > a {
+    font-size: 16px;
+    padding: 18px 12px;
+  }
+}
+@media (max-width: 1000px) and (min-width: 701px) {
+  .portal-shell .brand-bar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .portal-shell .account-links {
+    margin-left: auto;
+  }
+  .portal-shell .nav-items > a,
+  .portal-shell .nav-item > a {
+    padding-inline: 8px;
+    font-size: 14px;
+  }
+  .portal-footer-inner {
+    gap: 28px;
+  }
+  .portal-footer-brand img {
+    width: 280px;
+  }
+}
+@media (max-width: 700px) {
+  .portal-shell {
+    --portal-content-width: calc(100% - 32px);
+  }
+  .portal-shell .brand-bar {
+    padding-block: 14px;
+    min-height: 80px;
+    gap: 12px;
+  }
+  .portal-shell .brand {
+    gap: 10px;
+  }
+  .portal-shell .portal-logo {
+    width: clamp(105px, 31vw, 160px);
+  }
+  .portal-shell .brand strong {
+    font-size: 18px;
+  }
+  .portal-shell .brand small {
+    font-size: 7px;
+    letter-spacing: 0.5px;
+  }
+  .portal-shell .nav-items {
+    min-height: 0;
+  }
+  .portal-shell .nav-items > a,
+  .portal-shell .nav-item > a {
+    padding: 13px;
+    font-size: 16px;
+    justify-content: flex-start;
+  }
+  .portal-shell .mobile-menu {
+    padding: 15px 0;
+    font-size: 14px;
+  }
+  .portal-shell .collection-banner {
+    padding: 28px 0;
+  }
+  .portal-shell .page-banner h1 {
+    font-size: 26px;
+  }
+  .portal-shell .collection-heading p {
+    font-size: 14px;
+  }
+  .portal-shell .category-filters a {
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+  .portal-footer-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 26px;
+  }
+  .portal-footer-brand {
+    width: 300px;
+  }
+  .portal-footer-brand img {
+    width: 100%;
+  }
+  .portal-footer-info {
+    font-size: 12px;
+    gap: 12px;
+  }
+  .portal-footer .visit-count {
+    font-size: 14px;
+  }
+}

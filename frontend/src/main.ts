@@ -7,9 +7,21 @@ import Login from "./pages/Login.vue";
 import Account from "./pages/Account.vue";
 import { initialize, state, notify, recordVisit } from "./api";
 import "./style.css";
+import "./styles/portal.css";
 const router = createRouter({
   history: createWebHistory(),
-  scrollBehavior: () => ({ top: 0 }),
+  scrollBehavior: (to, from) => {
+    const resourceSlug = state.categories.find(
+      (category) => category.id === "resources",
+    )?.slug;
+    if (
+      to.path === from.path &&
+      to.params.slug === resourceSlug &&
+      resourceSlug
+    )
+      return false;
+    return { top: 0 };
+  },
   routes: [
     { path: "/", component: Home },
     { path: "/columns/:slug", component: ContentPage },

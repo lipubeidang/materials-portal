@@ -12,6 +12,8 @@ import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
 import { api, send, upload, notify, type Row } from "../api";
 import RichEditor from "../components/RichEditor.vue";
 import ArticleContent from "../components/ArticleContent.vue";
+import { productCategories, productTags } from "../products";
+import { industryRegions, topicsFor, isIndustryCategory } from "../industry";
 const route = useRoute(),
   router = useRouter(),
   categories = ref<Row[]>([]),
@@ -32,6 +34,9 @@ const form = reactive<Row>({
   summary: "",
   body: "",
   cover: "",
+  homeImage: "",
+  cooperationImage: "",
+  cooperationImageFit: "cover",
   displayDate: new Date().toLocaleDateString("en-CA"),
   documentNumber: "",
   department: "",
@@ -41,6 +46,16 @@ const form = reactive<Row>({
   pinned: false,
   recommended: false,
   sort: 0,
+  productCategory: "",
+  productTag: "",
+  industryRegion:
+    route.query.region === "international" ? "international" : "domestic",
+  industryTopic:
+    topicsFor(String(route.query.region || "domestic")).find(
+      (t) => t.value === route.query.topic,
+    )?.value || topicsFor(String(route.query.region || "domestic"))[0]!.value,
+  industryRecent: false,
+  industryFeatured: false,
   attachments: [],
   attachmentInfo: [],
   version: 0,
@@ -51,6 +66,82 @@ const category = computed(() =>
   dirty = computed(
     () => loaded.value && snapshot.value !== JSON.stringify(form),
   );
+const isIndustry = computed(() =>
+  isIndustryCategory(form.categoryId, categories.value),
+);
+const availableIndustryTopics = computed(() => topicsFor(form.industryRegion));
+watch(
+  () => form.industryRegion,
+  () => {
+    if (
+      !availableIndustryTopics.value.some((t) => t.value === form.industryTopic)
+    )
+      form.industryTopic = availableIndustryTopics.value[0]!.value;
+    if (form.industryRegion === "international") {
+      form.industryRecent = false;
+      form.industryFeatured = false;
+    }
+  },
+  { flush: "sync" },
+);
+const isCooperation = computed(
+  () =>
+    form.categoryId === "cooperation" ||
+    category.value?.parent_id === "cooperation",
+);
+const cooperationCategories = computed(() =>
+  categories.value.filter((c) => c.parent_id === "cooperation" && c.enabled),
+);
+const cooperationCategoryId = computed({
+  get: () => (form.categoryId === "cooperation" ? "" : form.categoryId),
+  set: (value: string) => {
+    form.categoryId = value || "cooperation";
+  },
+});
+const orderedCategories = computed(() =>
+  categories.value
+    .filter((c) => !c.parent_id && c.enabled)
+    .flatMap((root) => [
+      root,
+      ...categories.value.filter((c) => c.parent_id === root.id && c.enabled),
+    ]),
+);
+const cooperationImages = computed(() => {
+  const images = new Map<string, string>();
+  const add = (url: string, label: string) => {
+    if (/^\/api\/media\/[a-f0-9-]{36}$/.test(url) && !images.has(url))
+      images.set(url, label);
+  };
+  add(form.cover || "", "内容封面");
+  const document = new DOMParser().parseFromString(
+    form.body || "",
+    "text/html",
+  );
+  Array.from(document.querySelectorAll("img[src]")).forEach((image, index) =>
+    add(image.getAttribute("src") || "", `正文图片 ${index + 1}`),
+  );
+  (form.attachmentInfo || [])
+    .filter(
+      (file: Row) =>
+        file.mime?.startsWith("image/") && form.attachments.includes(file.id),
+    )
+    .forEach((file: Row) => add("/api/media/" + file.id, file.original_name));
+  return Array.from(images, ([url, label]) => ({ url, label }));
+});
+const cooperationPreviewImage = computed(
+  () => form.cooperationImage || cooperationImages.value[0]?.url || "",
+);
+watch(cooperationImages, (images) => {
+  if (
+    loaded.value &&
+    !busy.value &&
+    form.cooperationImage &&
+    !images.some((image) => image.url === form.cooperationImage)
+  ) {
+    form.cooperationImage = "";
+    notify("原选图片已从文章移除，交流合作首页图片已改为自动选择");
+  }
+});
 async function load() {
   loaded.value = false;
   try {
@@ -208,6 +299,32 @@ async function attach(e: Event) {
     (e.target as HTMLInputElement).value = "";
   }
 }
+async function chooseHomeImage(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  if (
+    !/\.(png|jpe?g)$/i.test(file.name) ||
+    !["image/png", "image/jpeg"].includes(file.type)
+  ) {
+    notify("请上传 PNG 或 JPG 图片", true);
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    notify("图片不能超过 10 MB", true);
+    return;
+  }
+  mediaBusy.value = true;
+  try {
+    form.homeImage = (await upload(file)).url;
+    notify("首页图片已上传，勾选首页推荐并发布后展示");
+  } catch (e) {
+    notify((e as Error).message, true);
+  } finally {
+    mediaBusy.value = false;
+  }
+}
 function removeAttachment(id: string) {
   form.attachments = form.attachments.filter((x: string) => x !== id);
   form.attachmentInfo = form.attachmentInfo.filter((x: Row) => x.id !== id);
@@ -269,11 +386,12 @@ function insertAttachment(file: Row) {
                   <span>所属栏目 <b>*</b></span>
                   <select v-model="form.categoryId" required>
                     <option
-                      v-for="c in categories.filter((c) => c.enabled)"
+                      v-for="c in orderedCategories"
                       :key="c.id"
                       :value="c.id"
                     >
-                      {{ c.parent_id ? "　└ " : "" }}{{ c.name }}
+                      {{ c.parent_id ? "　└ " : "" }}{{ c.name
+                      }}{{ c.id === "cooperation" ? "（选择下方分类）" : "" }}
                     </option>
                   </select>
                 </label>
@@ -284,6 +402,59 @@ function insertAttachment(file: Row) {
                 <label>
                   信息来源
                   <input v-model="form.source" placeholder="选填，如发布单位" />
+                </label>
+                <template v-if="isIndustry">
+                  <label
+                    >动态区域
+                    <select v-model="form.industryRegion" required>
+                      <option
+                        v-for="option in industryRegions"
+                        :key="option.value"
+                        :value="option.value"
+                      >
+                        {{ option.label }}
+                      </option>
+                    </select></label
+                  >
+                  <label
+                    >内容分类
+                    <select v-model="form.industryTopic" required>
+                      <option
+                        v-for="option in availableIndustryTopics"
+                        :key="option.value"
+                        :value="option.value"
+                      >
+                        {{ option.label }}
+                      </option>
+                    </select></label
+                  >
+                  <label class="full"
+                    >原文链接（选填）<input
+                      v-model="form.url"
+                      placeholder="https://…，在文章详情中显示“查看原文”"
+                  /></label>
+                </template>
+                <label v-if="category?.type === 'PRODUCT'">
+                  产品分类
+                  <select v-model="form.productCategory">
+                    <option value="">未分类</option>
+                    <option
+                      v-for="name in productCategories"
+                      :key="name"
+                      :value="name"
+                    >
+                      {{ name }}
+                    </option>
+                  </select>
+                </label>
+                <label v-if="category?.type === 'PRODUCT'">
+                  产品标签
+                  <select v-model="form.productTag">
+                    <option value="">无标签</option>
+                    <option v-for="tag in productTags" :key="tag" :value="tag">
+                      {{ tag }}
+                    </option>
+                  </select>
                 </label>
                 <label
                   v-if="
@@ -298,6 +469,28 @@ function insertAttachment(file: Row) {
                   />
                 </label>
               </div>
+            </section>
+
+            <section
+              v-if="isCooperation"
+              class="editor-section cooperation-category-field"
+            >
+              <label>
+                <span>交流合作分类 <b>*</b></span>
+                <select v-model="cooperationCategoryId" required>
+                  <option disabled value="">请选择文章所属分类</option>
+                  <option
+                    v-for="child in cooperationCategories"
+                    :key="child.id"
+                    :value="child.id"
+                  >
+                    {{ child.name }}
+                  </option>
+                </select>
+                <span class="field-hint"
+                  >文章发布到此分类列表；首页分类图片和“更多”均进入该列表。</span
+                >
+              </label>
             </section>
 
             <section class="editor-section body-section">
@@ -432,35 +625,205 @@ function insertAttachment(file: Row) {
                     v-model="form.keywords"
                     placeholder="选填，多个关键词用逗号分隔"
                 /></label>
-                <label v-if="form.categoryId === 'industry'"
-                  >领域分类<input
+                <label v-if="isIndustry"
+                  >材料领域（选填）<input
                     v-model="form.domain"
                     placeholder="如：生物医用材料"
                 /></label>
-                <label
-                  >排序优先级<input
-                    type="number"
-                    v-model.number="form.sort"
-                    min="-10000"
-                    max="10000"
-                /></label>
-                <label class="check-label"
-                  ><input
-                    type="checkbox"
-                    v-model="form.pinned"
-                  />在栏目中置顶</label
-                >
-                <label class="check-label"
-                  ><input
-                    type="checkbox"
-                    v-model="form.recommended"
-                  />推荐到首页对应区域</label
-                >
               </div>
             </details>
           </div>
 
           <aside class="publishing-aside">
+            <section
+              v-if="isCooperation"
+              class="publish-card cooperation-image-panel"
+            >
+              <h3>交流合作首页图片</h3>
+              <p>
+                从本文的正文、封面或图片附件中选一张，作为所属分类的首页展示图。
+              </p>
+              <div
+                v-if="cooperationPreviewImage"
+                class="cooperation-cover-preview"
+              >
+                <img
+                  :src="cooperationPreviewImage"
+                  alt="交流合作首页图片预览"
+                  :style="{ objectFit: form.cooperationImageFit }"
+                />
+              </div>
+              <div
+                v-if="cooperationImages.length"
+                class="cooperation-image-options"
+                role="radiogroup"
+                aria-label="选择交流合作首页图片"
+              >
+                <label
+                  class="cooperation-auto-image"
+                  :class="{ selected: !form.cooperationImage }"
+                >
+                  <input
+                    v-model="form.cooperationImage"
+                    type="radio"
+                    name="cooperationImage"
+                    value=""
+                  />
+                  自动使用文章第一张图片
+                </label>
+                <label
+                  v-for="image in cooperationImages"
+                  :key="image.url"
+                  class="cooperation-image-option"
+                  :class="{ selected: form.cooperationImage === image.url }"
+                >
+                  <input
+                    v-model="form.cooperationImage"
+                    type="radio"
+                    name="cooperationImage"
+                    :value="image.url"
+                    :aria-label="'使用' + image.label"
+                  />
+                  <img :src="image.url" alt="" />
+                  <span>{{ image.label }}</span>
+                </label>
+              </div>
+              <p v-else class="cooperation-no-image">
+                文章中还没有图片。请先插入正文图片、添加图片附件或上传内容封面。
+              </p>
+              <label
+                v-if="cooperationImages.length"
+                class="cooperation-fit-field"
+              >
+                图片展示方式
+                <select v-model="form.cooperationImageFit">
+                  <option value="cover">铺满区域（适合横向照片）</option>
+                  <option value="contain">完整显示（适合海报、期刊）</option>
+                </select>
+              </label>
+              <p class="field-hint">
+                发布后生效，无需勾选站点首页推荐。同一分类优先采用手动选图的文章，再按置顶、展示优先级、显示日期选取。撤回后自动采用下一篇可用文章的图片。
+              </p>
+            </section>
+            <section v-if="isIndustry" class="publish-card">
+              <h3>领域动态展示</h3>
+              <p>
+                发布到{{
+                  form.industryRegion === "international"
+                    ? "国际动态"
+                    : "国内动态"
+                }}
+                /
+                {{
+                  availableIndustryTopics.find(
+                    (t) => t.value === form.industryTopic,
+                  )?.label
+                }}。
+              </p>
+              <template v-if="form.industryRegion === 'domestic'">
+                <label class="check-label home-recommend"
+                  ><input
+                    type="checkbox"
+                    v-model="form.industryRecent"
+                  />加入近期要闻</label
+                >
+                <label class="check-label home-recommend"
+                  ><input
+                    type="checkbox"
+                    v-model="form.industryFeatured"
+                  />加入图片推荐</label
+                >
+                <p>
+                  近期要闻显示在国内动态右侧。图片推荐显示在左侧轮播，需上传推荐图片或内容封面。
+                </p>
+              </template>
+              <p v-else>
+                国际动态以列表展示标题、来源和日期，点击“查看”进入文章详情。
+              </p>
+              <p>
+                列表和推荐位置均按置顶、展示优先级、显示日期排序；发布更新后生效。
+              </p>
+            </section>
+            <section class="publish-card priority-panel">
+              <h3>展示优先级</h3>
+              <label
+                >优先级数值
+                <input
+                  type="number"
+                  v-model.number="form.sort"
+                  min="-10000"
+                  max="10000"
+                  step="1"
+                  required
+                  aria-describedby="priority-help"
+                />
+              </label>
+              <p id="priority-help" class="field-hint">
+                数值越大越靠前，默认
+                0。置顶内容优先；同为置顶或普通内容时，按优先级从高到低、显示日期从新到旧排列。
+              </p>
+              <label class="check-label"
+                ><input type="checkbox" v-model="form.pinned" />置顶展示</label
+              >
+              <p class="field-hint">
+                适用于首页推荐与栏目默认排序。点击“立即发布”或“发布更新”后生效，仅保存草稿不会改变网页顺序。
+              </p>
+            </section>
+            <section
+              v-if="!isIndustry || form.industryRegion === 'domestic'"
+              class="publish-card home-image-panel"
+            >
+              <h3>
+                {{ isIndustry ? "推荐图片" : "首页图片" }}
+                <span class="optional-label">选填</span>
+              </h3>
+              <label
+                class="cover-upload home-image-upload"
+                :class="{ disabled: busy || uploadingMedia }"
+              >
+                <img
+                  v-if="form.homeImage"
+                  :src="form.homeImage"
+                  :alt="isIndustry ? '推荐图片预览' : '首页图片预览'"
+                />
+                <template v-else
+                  ><span>＋</span
+                  ><strong>{{
+                    isIndustry ? "选择推荐图片" : "选择首页图片"
+                  }}</strong
+                  ><small>PNG / JPG · 建议横向图片</small></template
+                >
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  :aria-label="isIndustry ? '上传推荐图片' : '上传首页图片'"
+                  hidden
+                  @change="chooseHomeImage"
+                  :disabled="busy || uploadingMedia"
+                />
+              </label>
+              <button
+                v-if="form.homeImage"
+                type="button"
+                class="text-button"
+                @click="form.homeImage = ''"
+                :disabled="busy || uploadingMedia"
+              >
+                {{ isIndustry ? "移除推荐图片" : "移除首页图片" }}
+              </button>
+              <label v-if="!isIndustry" class="check-label home-recommend"
+                ><input
+                  type="checkbox"
+                  v-model="form.recommended"
+                />推荐到首页对应区域</label
+              >
+              <p v-if="isIndustry">
+                勾选“加入图片推荐”后显示于国内动态左侧轮播，点击可进入文章。未设置推荐图片时使用内容封面。
+              </p>
+              <p v-else>
+                用于首页新闻大图或产品卡片，点击可进入对应文章。发布后生效；未设置时沿用内容封面。
+              </p>
+            </section>
             <section class="publish-card cover-panel">
               <h3>内容封面 <span class="optional-label">选填</span></h3>
               <label
@@ -608,6 +971,91 @@ function insertAttachment(file: Row) {
 </template>
 
 <style scoped>
+.cooperation-category-field {
+  padding: 16px;
+  background: #f3f7fd;
+  border: 1px solid #dce7f6;
+  border-radius: 6px;
+}
+.cooperation-cover-preview {
+  aspect-ratio: 1.82;
+  overflow: hidden;
+  border-radius: 8px;
+  margin: 16px 0;
+  background: #e9f3ff;
+}
+.cooperation-cover-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.cooperation-image-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 3px;
+}
+.cooperation-image-option {
+  position: relative;
+  min-width: 0;
+  padding: 6px;
+  border: 2px solid #e1e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.cooperation-image-option.selected,
+.cooperation-auto-image.selected {
+  border-color: #2867c4;
+  background: #f0f6ff;
+}
+.cooperation-image-option input {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+}
+.cooperation-image-options input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #2563c9;
+  flex-shrink: 0;
+}
+.cooperation-image-option img {
+  width: 100%;
+  height: 72px;
+  object-fit: contain;
+  background: #f0f3f8;
+}
+.cooperation-image-option span {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.cooperation-auto-image {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  grid-column: 1 / -1;
+  padding: 10px 8px;
+  border: 2px solid #e1e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.cooperation-fit-field {
+  margin: 16px 0;
+}
+.cooperation-no-image {
+  padding: 14px;
+  background: #f1f5fa;
+  border-radius: 6px;
+}
+.cooperation-image-options label:focus-within {
+  outline: 2px solid #2867c4;
+  outline-offset: 1px;
+}
 .publishing-workspace {
   max-width: 1450px;
   margin: 0 auto;
@@ -781,6 +1229,12 @@ function insertAttachment(file: Row) {
 .publishing-aside {
   display: grid;
   gap: 20px;
+}
+.home-image-upload img {
+  object-fit: contain;
+}
+.home-recommend {
+  margin-top: 16px;
 }
 .publish-card {
   border: 1px solid #e3eaf1;

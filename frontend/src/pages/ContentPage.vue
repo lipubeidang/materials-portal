@@ -3,6 +3,11 @@ import { ref, computed, watch, onBeforeUnmount } from "vue";
 import { useRoute } from "vue-router";
 import { api, state, type Row, categoryPath } from "../api";
 import ArticleContent from "../components/ArticleContent.vue";
+import ResourceBrowser from "../components/ResourceBrowser.vue";
+import ProductCatalog from "../components/ProductCatalog.vue";
+import CooperationCatalog from "../components/CooperationCatalog.vue";
+import IndustryUpdates from "../components/IndustryUpdates.vue";
+import { industryPath } from "../industry";
 
 const route = useRoute(),
   item = ref<Row | null>(null),
@@ -23,6 +28,25 @@ const parentCategory = computed(() =>
   state.categories.find((c) => c.id === currentCategory.value?.parent_id),
 );
 const categoryRoot = computed(() => parentCategory.value || cat.value);
+const cooperationCatalog = computed(
+  () => !route.params.id && categoryRoot.value?.id === "cooperation",
+);
+const resourceCatalog = computed(
+  () => !route.params.id && categoryRoot.value?.id === "resources",
+);
+const productCatalog = computed(
+  () =>
+    !route.params.id &&
+    (categoryRoot.value?.id === "products" || cat.value?.type === "PRODUCT"),
+);
+const industryCatalog = computed(
+  () => !route.params.id && categoryRoot.value?.id === "industry",
+);
+const backPath = computed(() =>
+  item.value?.industryContent
+    ? industryPath(item.value)
+    : categoryPath(currentCategory.value?.id),
+);
 const children = computed(() =>
   state.categories.filter((c) => c.parent_id === categoryRoot.value?.id),
 );
@@ -51,7 +75,14 @@ async function load() {
   items.value = [];
   state.contentCategoryId = cat.value?.id || "";
   try {
-    if (route.params.id) {
+    if (
+      resourceCatalog.value ||
+      productCatalog.value ||
+      industryCatalog.value ||
+      cooperationCatalog.value
+    ) {
+      return;
+    } else if (route.params.id) {
       const data = await api("/api/public/contents/" + route.params.id);
       if (request !== requestId) return;
       item.value = data;
@@ -98,133 +129,151 @@ function changePage(delta: number) {
 </script>
 
 <template>
-  <div v-if="!reading" class="page-banner collection-banner">
-    <div class="container collection-heading">
-      <div>
-        <span>NEW MATERIALS DATA CENTER</span>
-        <h1>{{ title }}</h1>
-        <p>{{ description }}</p>
-      </div>
-      <span v-if="!loading && !error" class="collection-count"
-        >{{ total }} <small>篇内容</small></span
-      >
-    </div>
-  </div>
-  <div class="container content-layout" :class="{ 'reading-layout': reading }">
-    <div class="content-path">
-      <nav class="breadcrumbs" aria-label="当前位置">
-        <RouterLink to="/">首页</RouterLink><span aria-hidden="true">/</span>
-        <template v-if="parentCategory">
-          <RouterLink :to="categoryPath(parentCategory.id)">{{
-            parentCategory.name
-          }}</RouterLink
-          ><span aria-hidden="true">/</span>
-        </template>
-        <template v-if="reading && currentCategory && route.params.id">
-          <RouterLink :to="categoryPath(currentCategory.id)">{{
-            currentCategory.name
-          }}</RouterLink
-          ><span aria-hidden="true">/</span>
-          <span aria-current="page">正文</span>
-        </template>
-        <span v-else aria-current="page">{{ title }}</span>
-      </nav>
-      <RouterLink
-        v-if="reading && currentCategory && route.params.id"
-        :to="categoryPath(currentCategory.id)"
-        class="back-to-list"
-        >← 返回列表</RouterLink
-      >
-    </div>
-    <section class="content-panel">
-      <div v-if="loading" class="empty">正在加载…</div>
-      <div v-else-if="error" class="empty">
-        {{ error }} <RouterLink to="/">返回首页</RouterLink>
-      </div>
-      <ArticleContent v-else-if="item" :item="item" />
-      <template v-else>
-        <form
-          v-if="route.path === '/search'"
-          class="search-box collection-search"
-          @submit.prevent="$router.push({ path: '/search', query: { q } })"
+  <ResourceBrowser v-if="resourceCatalog" />
+  <ProductCatalog v-else-if="productCatalog && cat" :category="cat" />
+  <CooperationCatalog v-else-if="cooperationCatalog && cat" :category="cat" />
+  <IndustryUpdates v-else-if="industryCatalog && cat" :category="cat" />
+  <template v-else>
+    <div v-if="!reading" class="page-banner collection-banner">
+      <div class="container collection-heading">
+        <div>
+          <span>NEW MATERIALS DATA CENTER</span>
+          <h1>{{ title }}</h1>
+          <p>{{ description }}</p>
+        </div>
+        <span
+          v-if="!resourceCatalog && !loading && !error"
+          class="collection-count"
+          >{{ total }} <small>篇内容</small></span
         >
-          <input
-            v-model="q"
-            placeholder="搜索已发布内容"
-            aria-label="搜索已发布内容"
-          /><button>搜索</button>
-        </form>
-        <nav
-          v-if="children.length && categoryRoot"
-          class="category-filters"
-          aria-label="子栏目筛选"
-        >
-          <RouterLink
-            :to="categoryPath(categoryRoot.id)"
-            :class="{ selected: cat?.id === categoryRoot.id }"
-            >全部{{ categoryRoot.name }}</RouterLink
-          >
-          <RouterLink
-            v-for="child in children"
-            :key="child.id"
-            :to="categoryPath(child.id)"
-            :class="{ selected: cat?.id === child.id }"
-            >{{ child.name }}</RouterLink
-          >
+      </div>
+    </div>
+    <div
+      class="container content-layout"
+      :class="{ 'reading-layout': reading }"
+    >
+      <div class="content-path">
+        <nav class="breadcrumbs" aria-label="当前位置">
+          <RouterLink to="/">首页</RouterLink><span aria-hidden="true">/</span>
+          <template v-if="parentCategory">
+            <RouterLink :to="categoryPath(parentCategory.id)">{{
+              parentCategory.name
+            }}</RouterLink
+            ><span aria-hidden="true">/</span>
+          </template>
+          <template v-if="reading && currentCategory && route.params.id">
+            <RouterLink :to="backPath">{{ currentCategory.name }}</RouterLink
+            ><span aria-hidden="true">/</span>
+            <span aria-current="page">正文</span>
+          </template>
+          <span v-else aria-current="page">{{ title }}</span>
         </nav>
-        <div
-          :class="
-            cat?.template === 'cards'
-              ? 'listing-cards'
-              : cat?.template === 'date'
-                ? 'listing date-listing'
-                : 'listing'
-          "
+        <RouterLink
+          v-if="reading && currentCategory && route.params.id"
+          :to="backPath"
+          class="back-to-list"
+          >← 返回列表</RouterLink
         >
-          <RouterLink
-            v-for="n in items"
-            :key="n.id"
-            :to="'/content/' + n.id"
-            class="list-item"
+      </div>
+      <section class="content-panel">
+        <div v-if="loading" class="empty">正在加载…</div>
+        <div v-else-if="error" class="empty">
+          {{ error }} <RouterLink to="/">返回首页</RouterLink>
+        </div>
+        <ArticleContent v-else-if="item" :item="item" />
+        <template v-else>
+          <form
+            v-if="route.path === '/search'"
+            class="search-box collection-search"
+            @submit.prevent="$router.push({ path: '/search', query: { q } })"
           >
-            <span v-if="cat?.template === 'date'" class="date-card"
-              ><b>{{ n.displayDate.slice(8) }}</b
-              ><small>{{ n.displayDate.slice(0, 7) }}</small></span
+            <input
+              v-model="q"
+              placeholder="搜索已发布内容"
+              aria-label="搜索已发布内容"
+            /><button>搜索</button>
+          </form>
+          <nav
+            v-if="children.length && categoryRoot"
+            class="category-filters"
+            aria-label="子栏目筛选"
+          >
+            <RouterLink
+              :to="categoryPath(categoryRoot.id)"
+              :class="{ selected: cat?.id === categoryRoot.id }"
+              >全部{{ categoryRoot.name }}</RouterLink
             >
-            <img v-if="n.cover" :src="n.cover" :alt="n.title" loading="lazy" />
-            <span
-              v-else-if="cat?.template === 'cards'"
-              class="card-art"
-              aria-hidden="true"
-              >◈</span
+            <RouterLink
+              v-for="child in children"
+              :key="child.id"
+              :to="categoryPath(child.id)"
+              :class="{ selected: cat?.id === child.id }"
+              >{{ child.name }}</RouterLink
             >
-            <div class="list-copy">
-              <span class="article-category"
-                >{{ n.categoryName }} <b v-if="n.pinned">置顶</b></span
+          </nav>
+          <div
+            :class="
+              cat?.template === 'cards'
+                ? 'listing-cards'
+                : cat?.template === 'date'
+                  ? 'listing date-listing'
+                  : 'listing'
+            "
+          >
+            <RouterLink
+              v-for="n in items"
+              :key="n.id"
+              :to="'/content/' + n.id"
+              class="list-item"
+            >
+              <span v-if="cat?.template === 'date'" class="date-card"
+                ><b>{{ n.displayDate.slice(8) }}</b
+                ><small>{{ n.displayDate.slice(0, 7) }}</small></span
               >
-              <h2>{{ n.title }}</h2>
-              <p v-if="n.excerpt || n.summary">{{ n.excerpt || n.summary }}</p>
-              <time :datetime="n.displayDate">{{ n.displayDate }}</time>
-            </div>
-            <span class="arrow" aria-hidden="true">→</span>
-          </RouterLink>
-        </div>
-        <div v-if="!items.length" class="empty">
-          {{
-            route.path === "/search"
-              ? "没有找到匹配内容，试试其他关键词"
-              : "暂无已发布内容"
-          }}
-        </div>
-        <div v-if="total" class="pagination">
-          <span>共 {{ total }} 条</span
-          ><button :disabled="page <= 1" @click="changePage(-1)">上一页</button>
-          <span>{{ page }} / {{ Math.ceil(total / 12) }}</span
-          ><button :disabled="page * 12 >= total" @click="changePage(1)">
-            下一页
-          </button>
-        </div>
-      </template>
-    </section>
-  </div>
+              <img
+                v-if="n.cover"
+                :src="n.cover"
+                :alt="n.title"
+                loading="lazy"
+              />
+              <span
+                v-else-if="cat?.template === 'cards'"
+                class="card-art"
+                aria-hidden="true"
+                >◈</span
+              >
+              <div class="list-copy">
+                <span class="article-category"
+                  >{{ n.categoryName }} <b v-if="n.pinned">置顶</b></span
+                >
+                <h2>{{ n.title }}</h2>
+                <p v-if="n.excerpt || n.summary">
+                  {{ n.excerpt || n.summary }}
+                </p>
+                <time :datetime="n.displayDate">{{ n.displayDate }}</time>
+              </div>
+              <span class="arrow" aria-hidden="true">→</span>
+            </RouterLink>
+          </div>
+          <div v-if="!items.length" class="empty">
+            {{
+              route.path === "/search"
+                ? "没有找到匹配内容，试试其他关键词"
+                : "暂无已发布内容"
+            }}
+          </div>
+          <div v-if="total" class="pagination">
+            <span>共 {{ total }} 条</span
+            ><button :disabled="page <= 1" @click="changePage(-1)">
+              上一页
+            </button>
+            <span>{{ page }} / {{ Math.ceil(total / 12) }}</span
+            ><button :disabled="page * 12 >= total" @click="changePage(1)">
+              下一页
+            </button>
+          </div>
+        </template>
+      </section>
+    </div>
+  </template>
 </template>

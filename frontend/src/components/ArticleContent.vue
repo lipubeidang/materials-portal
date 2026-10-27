@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import type { Row } from "../api";
+import { industryLabel } from "../industry";
 
 const props = defineProps<{ item: Row }>();
 const failedImages = ref(new Set<string>());
@@ -51,7 +52,9 @@ function fileSize(bytes: number) {
 <template>
   <article class="article reading-article">
     <header class="article-heading">
-      <span class="article-kicker">{{ item.categoryName }}</span>
+      <span class="article-kicker">{{
+        item.industryContent ? industryLabel(item) : item.categoryName
+      }}</span>
       <h1>{{ item.title }}</h1>
       <p v-if="item.subtitle" class="article-subtitle">{{ item.subtitle }}</p>
       <div class="reading-meta">
@@ -127,7 +130,14 @@ function fileSize(bytes: number) {
       :href="item.url"
       target="_blank"
       rel="noopener noreferrer"
-      >{{ item.type === "LINK" ? "访问相关网站" : "访问资源 / 产品" }} ↗</a
+      >{{
+        item.industryContent
+          ? "查看原文"
+          : item.type === "LINK"
+            ? "访问相关网站"
+            : "访问资源 / 产品"
+      }}
+      ↗</a
     >
     <section
       v-if="documents.length"

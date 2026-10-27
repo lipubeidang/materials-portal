@@ -42,10 +42,16 @@ public class ContentService {
       "summary",
       "body",
       "cover",
+      "homeImage",
+      "cooperationImage",
       "displayDate",
       "documentNumber",
       "department",
       "keywords",
+      "productCategory",
+      "productTag",
+      "industryRegion",
+      "industryTopic",
       "url",
       "domain"
     )) {
@@ -96,7 +102,21 @@ public class ContentService {
     out.put("body", doc.body().html());
     out.put("pinned", bool(b, "pinned"));
     out.put("recommended", bool(b, "recommended"));
-    out.put("sort", Math.max(-10000, Math.min(10000, num(b, "sort", 0))));
+    out.put("industryRecent", bool(b, "industryRecent"));
+    out.put("industryFeatured", bool(b, "industryFeatured"));
+    String priority = Objects.toString(b.getOrDefault("sort", 0), "");
+    require(
+      priority.matches("-?\\d{1,5}"),
+      400,
+      "展示优先级须为 -10000 到 10000 的整数"
+    );
+    int sort = Integer.parseInt(priority);
+    require(
+      sort >= -10000 && sort <= 10000,
+      400,
+      "展示优先级须为 -10000 到 10000 的整数"
+    );
+    out.put("sort", sort);
     var attachments = new ArrayList<String>();
     Object raw = b.get("attachments");
     if (raw instanceof List<?> list) for (Object x : list) {
@@ -106,19 +126,81 @@ public class ContentService {
     }
     require(attachments.size() <= 20, 400, "最多 20 个附件");
     out.put("attachments", attachments);
-    String cover = str(out, "cover");
+    for (String key : List.of("cover", "homeImage", "cooperationImage")) {
+      String image = str(out, key);
+      require(
+        image.isBlank() || image.matches("/api/media/[a-f0-9-]{36}"),
+        400,
+        "封面和首页图片必须使用上传的图片"
+      );
+    }
+    String cooperationImage = str(out, "cooperationImage");
     require(
-      cover.isBlank() || cover.matches("/api/media/[a-f0-9-]{36}"),
+      cooperationImage.isBlank() ||
+        cooperationImage.equals(str(out, "cover")) ||
+        doc
+          .select("img[src]")
+          .stream()
+          .anyMatch(img -> cooperationImage.equals(img.attr("src"))) ||
+        attachments.contains(cooperationImage.substring(11)),
       400,
-      "封面必须使用上传的图片"
+      "交流合作首页图片须从本文的正文、封面或图片附件中选择"
     );
+    String imageFit = str(b, "cooperationImageFit");
+    if (imageFit.isBlank()) imageFit = "cover";
+    require(
+      Set.of("cover", "contain").contains(imageFit),
+      400,
+      "图片展示方式不正确"
+    );
+    out.put("cooperationImageFit", imageFit);
     return out;
+  }
+
+  static Set<String> industryTopics(String region) {
+    return region.equals("international")
+      ? Set.of("science", "progress")
+      : Set.of("policy", "action", "science", "progress");
+  }
+
+  static void industryDefaults(Map<String, Object> data) {
+    if (str(data, "industryRegion").isBlank()) data.put(
+      "industryRegion",
+      "domestic"
+    );
+    if (str(data, "industryTopic").isBlank()) data.put(
+      "industryTopic",
+      "science"
+    );
+  }
+
+  void validateIndustry(Map<String, Object> data) {
+    industryDefaults(data);
+    String region = str(data, "industryRegion");
+    require(
+      Set.of("domestic", "international").contains(region),
+      400,
+      "请选择有效的动态区域"
+    );
+    require(
+      industryTopics(region).contains(str(data, "industryTopic")),
+      400,
+      "此区域不支持该内容分类"
+    );
+    require(
+      region.equals("domestic") ||
+        (!bool(data, "industryRecent") && !bool(data, "industryFeatured")),
+      400,
+      "国际动态不支持国内近期要闻或图片推荐"
+    );
   }
 
   Set<String> imageFiles(Map<String, Object> data) {
     Set<String> ids = new HashSet<>();
-    String cover = str(data, "cover");
-    if (!cover.isBlank()) ids.add(cover.substring(11));
+    for (String key : List.of("cover", "homeImage", "cooperationImage")) {
+      String image = str(data, key);
+      if (!image.isBlank()) ids.add(image.substring(11));
+    }
     for (var img : Jsoup.parse(str(data, "body")).select("img[src]"))
       ids.add(img.attr("src").substring(11));
     return ids;
@@ -169,6 +251,10 @@ public class ContentService {
     var payload = s.decode(revision.get("payload"));
     payload.put("id", row.get("id"));
     payload.put("categoryId", revision.get("category_id"));
+    if (descendants("industry").contains(str(payload, "categoryId"))) {
+      industryDefaults(payload);
+      payload.put("industryContent", true);
+    }
     payload.put("version", row.get("version"));
     payload.put("publishedAt", row.get("published_at"));
     payload.put("updatedAt", row.get("updated_at"));
@@ -267,6 +353,7 @@ public class ContentService {
     var cat = s.one("SELECT * FROM categories WHERE id=? FOR UPDATE", category);
     require(cat != null && bool(cat, "enabled"), 400, "请选择可用栏目");
     var payload = clean(b);
+    if (descendants("industry").contains(category)) validateIndustry(payload);
     boolean fresh = id == null;
     long time = now();
     if (fresh) id = id();
@@ -314,7 +401,7 @@ public class ContentService {
       require(
         !images.contains(file) || str(media, "mime").startsWith("image/"),
         400,
-        "封面和正文图片必须使用图片文件"
+        "封面、首页图片和正文图片必须使用图片文件"
       );
       s.update("INSERT INTO revision_media VALUES(?,?)", revision, file);
     }
@@ -348,6 +435,21 @@ public class ContentService {
       case "publish" -> {
         require(!bool(row, "deleted"), 409, "请先恢复内容");
         var v = view(row, false);
+        require(
+          !"cooperation".equals(str(v, "categoryId")),
+          400,
+          "请先选择交流合作下的具体分类，再发布文章"
+        );
+        if (bool(v, "industryContent")) {
+          validateIndustry(v);
+          require(
+            !bool(v, "industryFeatured") ||
+              !str(v, "homeImage").isBlank() ||
+              !str(v, "cover").isBlank(),
+            400,
+            "图片推荐需要先上传推荐图片或内容封面"
+          );
+        }
         require(visibleCategory(str(v, "categoryId")), 400, "栏目尚未启用");
         var cat = s.one(
           "SELECT * FROM categories WHERE id=? FOR UPDATE",

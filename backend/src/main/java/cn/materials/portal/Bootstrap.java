@@ -88,6 +88,13 @@ public class Bootstrap implements ApplicationRunner {
       category("resources", "数据资源", null, "RESOURCE", "cards", 7);
       category("products", "数据产品", null, "PRODUCT", "cards", 8);
       category("cooperation", "交流合作", null, "ARTICLE", "list", 9);
+      category("cooperation-conferences", "学术会议", "cooperation", "ARTICLE", "list", 91);
+      category("cooperation-journals", "学术期刊", "cooperation", "ARTICLE", "list", 92);
+      category("cooperation-international", "国际交流", "cooperation", "ARTICLE", "list", 93);
+      category("cooperation-standards", "标委会活动", "cooperation", "ARTICLE", "list", 94);
+      category("cooperation-alliance", "联盟活动", "cooperation", "ARTICLE", "list", 95);
+      category("cooperation-training", "人才培训", "cooperation", "ARTICLE", "list", 96);
+      category("cooperation-enterprise", "企业合作", "cooperation", "ARTICLE", "list", 97);
       category("about", "关于我们", null, "PAGE", "page", 10);
     }
     if (s.one("SELECT id FROM site_settings WHERE id=1") == null) {
@@ -101,6 +108,8 @@ public class Bootstrap implements ApplicationRunner {
           : "新材料门户 · 让数据连接材料创新"
       );
       site.put("contact", "");
+      site.put("registrationNumber", "");
+      site.put("registrationUrl", "");
       site.put(
         "banners",
         List.of(
@@ -152,6 +161,7 @@ public class Bootstrap implements ApplicationRunner {
         )
       );
       site.put("partners", List.of());
+      site.put("departments", List.of());
       site.put("navigation", List.of());
       s.update("INSERT INTO site_settings VALUES(1,?,1)", s.encode(site));
     }
@@ -200,7 +210,7 @@ public class Bootstrap implements ApplicationRunner {
       { "resources", "先进结构材料研究资源" },
       { "products", "材料数据检索与发现工具" },
       { "products", "材料研究成果展示服务" },
-      { "cooperation", "共建开放共享的材料创新网络" },
+      { "cooperation-enterprise", "共建开放共享的材料创新网络" },
       { "about", "关于新材料数据中心" },
     };
     for (int i = 0; i < entries.length; i++) {

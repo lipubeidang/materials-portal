@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { api, send, notify, date, type Row } from "../api";
+import PublishStatusSelect from "../components/PublishStatusSelect.vue";
+import {
+  industryRegions,
+  industryTopics,
+  topicsFor,
+  industryLabel,
+  isIndustryCategory,
+} from "../industry";
 const router = useRouter(),
   categories = ref<Row[]>([]),
   category = ref(""),
@@ -13,7 +21,25 @@ const router = useRouter(),
   selected = ref<string[]>([]),
   busy = ref(false),
   error = ref("");
+const industryRegion = ref(""),
+  industryTopic = ref("");
+const industrySelected = computed(() =>
+  isIndustryCategory(category.value, categories.value),
+);
+const currentColumn = computed(() =>
+  [
+    categories.value.find((c) => c.id === category.value)?.name || "全部",
+    industrySelected.value &&
+      industryRegions.find((r) => r.value === industryRegion.value)?.label,
+    industrySelected.value &&
+      industryTopics.find((t) => t.value === industryTopic.value)?.label,
+  ]
+    .filter(Boolean)
+    .join(" / "),
+);
+let requestId = 0;
 async function load() {
+  const request = ++requestId;
   busy.value = true;
   error.value = "";
   try {
@@ -23,16 +49,19 @@ async function load() {
           category: category.value,
           q: q.value,
           status: status.value,
+          industryRegion: industryRegion.value,
+          industryTopic: industryTopic.value,
           page: String(page.value),
         }),
     );
+    if (request !== requestId) return;
     items.value = data.items;
     total.value = data.total;
     selected.value = [];
   } catch (e) {
-    error.value = (e as Error).message;
+    if (request === requestId) error.value = (e as Error).message;
   } finally {
-    busy.value = false;
+    if (request === requestId) busy.value = false;
   }
 }
 onMounted(async () => {
@@ -43,15 +72,21 @@ onMounted(async () => {
     notify((e as Error).message, true);
   }
 });
-function filter(id: string) {
+function filter(id: string, region = "", topic = "") {
   category.value = id;
+  industryRegion.value = region;
+  industryTopic.value = topic;
   page.value = 1;
   load();
 }
 function add() {
   router.push({
     path: "/operator/edit/new",
-    query: { category: category.value || "headlines" },
+    query: {
+      category: category.value || "headlines",
+      region: industryRegion.value || undefined,
+      topic: industryTopic.value || undefined,
+    },
   });
 }
 async function action(item: Row, name: string) {
@@ -118,7 +153,7 @@ async function batch(action: string) {
         v-for="root in categories.filter((c) => !c.parent_id)"
         :key="root.id"
         ><button
-          :class="{ active: category === root.id }"
+          :class="{ active: category === root.id && !industryRegion }"
           @click="filter(root.id)"
         >
           ▸ ▰ {{ root.name }} <small v-if="!root.enabled">停用</small></button
@@ -130,7 +165,48 @@ async function batch(action: string) {
           @click="filter(child.id)"
         >
           └ {{ child.name }}
-        </button></template
+        </button>
+        <template v-if="root.id === 'industry'">
+          <template v-for="region in industryRegions" :key="region.value">
+            <button
+              class="tree-child"
+              :class="{
+                active:
+                  category === root.id &&
+                  industryRegion === region.value &&
+                  !industryTopic,
+              }"
+              :aria-pressed="
+                category === root.id &&
+                industryRegion === region.value &&
+                !industryTopic
+              "
+              @click="filter(root.id, region.value)"
+            >
+              └ {{ region.label }}
+            </button>
+            <button
+              v-for="topic in topicsFor(region.value)"
+              :key="topic.value"
+              class="tree-grandchild"
+              :class="{
+                active:
+                  category === root.id &&
+                  industryRegion === region.value &&
+                  industryTopic === topic.value,
+              }"
+              :aria-pressed="
+                category === root.id &&
+                industryRegion === region.value &&
+                industryTopic === topic.value
+              "
+              :aria-label="region.label + ' / ' + topic.label"
+              @click="filter(root.id, region.value, topic.value)"
+            >
+              └ {{ topic.label }}
+            </button>
+          </template>
+        </template></template
       >
       <div class="tree-note">
         选择栏目后添加内容<br />发布结果自动显示在对应门户栏目
@@ -147,22 +223,14 @@ async function batch(action: string) {
           "
         >
           <label
-            >内容标题<input v-model="q" placeholder="输入标题关键词" /></label
-          ><label
-            >发布状态<select v-model="status">
-              <option value="">全部有效内容</option>
-              <option value="DRAFT">草稿</option>
-              <option value="PUBLISHED">已发布</option>
-              <option value="DELETED">回收站</option>
-            </select></label
-          ><button class="btn primary" :disabled="busy">⌕ 查询</button>
+            >内容标题<input v-model="q" placeholder="输入标题关键词"
+          /></label>
+          <PublishStatusSelect v-model="status" />
+          <button class="btn primary" :disabled="busy">⌕ 查询</button>
         </form>
       </section>
       <section class="admin-panel">
-        <h2>
-          {{ categories.find((c) => c.id === category)?.name || "全部" }} ·
-          内容管理
-        </h2>
+        <h2>{{ currentColumn }} · 内容管理</h2>
         <div class="table-toolbar">
           <button class="btn primary" @click="add">＋ 添加内容</button
           ><button
@@ -190,6 +258,16 @@ async function batch(action: string) {
             selected.length ? `已选择 ${selected.length} 条` : ""
           }}</span>
         </div>
+        <p
+          v-if="
+            category === 'cooperation' ||
+            categories.find((c) => c.id === category)?.parent_id ===
+              'cooperation'
+          "
+          class="cooperation-admin-hint"
+        >
+          交流合作按子栏目发布。编辑文章时选择具体分类，并从文章图片中选择首页分类图；发布后图片和“更多”都会进入该分类列表。旧文章如仍属于“交流合作”，请编辑后补选分类。
+        </p>
         <div v-if="error" class="inline-error">{{ error }}</div>
         <div class="table-scroll">
           <table>
@@ -213,6 +291,7 @@ async function batch(action: string) {
                 <th>栏目</th>
                 <th>更新时间</th>
                 <th>显示日期</th>
+                <th>展示优先级</th>
                 <th>状态</th>
                 <th>操作</th>
               </tr>
@@ -233,9 +312,28 @@ async function batch(action: string) {
                     >有未发布修改</small
                   >
                 </td>
-                <td>{{ item.categoryName }}</td>
+                <td>
+                  {{ item.categoryName
+                  }}<small
+                    v-if="item.industryContent"
+                    class="industry-admin-label"
+                    >{{ industryLabel(item) }}<br /><span
+                      v-if="item.industryRecent"
+                      >近期要闻 </span
+                    ><span v-if="item.industryFeatured">图片推荐</span></small
+                  >
+                  <small
+                    v-if="item.categoryId === 'cooperation'"
+                    class="changed-label"
+                    >待归入子栏目</small
+                  >
+                </td>
                 <td>{{ date(item.updatedAt) }}</td>
                 <td>{{ item.displayDate }}</td>
+                <td>
+                  {{ item.sort ?? 0
+                  }}<small v-if="item.pinned" class="changed-label">置顶</small>
+                </td>
                 <td>
                   <span class="status" :class="item.status.toLowerCase()">{{
                     (
@@ -275,7 +373,7 @@ async function batch(action: string) {
                 </td>
               </tr>
               <tr v-if="!items.length">
-                <td colspan="7" class="empty">
+                <td colspan="8" class="empty">
                   {{
                     busy ? "正在加载…" : "暂无内容，选择栏目后添加第一篇内容"
                   }}
@@ -309,3 +407,15 @@ async function batch(action: string) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.cooperation-admin-hint {
+  margin: 0 20px 20px;
+  padding: 14px 16px;
+  border-radius: 6px;
+  background: #f0f6ff;
+  color: #42638d;
+  font-size: 13px;
+  line-height: 1.8;
+}
+</style>

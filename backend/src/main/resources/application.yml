@@ -22,6 +22,11 @@ app:
   bootstrap-user: ${BOOTSTRAP_USER:}
   bootstrap-password: ${BOOTSTRAP_PASSWORD:}
   demo: ${DEMO_DATA:false}
+  resources:
+    base-url: ${RESOURCE_BASE_URL:http://171.221.175.91:50003}
+    statistics-path: ${RESOURCE_STATISTICS_PATH:/dynamics/homePage/getHomePage}
+    authorization: ${RESOURCE_AUTHORIZATION:}
+    cache-seconds: ${RESOURCE_CACHE_SECONDS:60}
   center:
     enabled: ${CENTER_ENABLED:false}
     base-url: ${CENTER_BASE_URL:}

@@ -23,21 +23,53 @@ public class ContentController {
   Object list(
     @RequestParam(defaultValue = "") String category,
     @RequestParam(defaultValue = "") String q,
+    @RequestParam(defaultValue = "") String productCategory,
+    @RequestParam(defaultValue = "") String tag,
+    @RequestParam(defaultValue = "default") String sort,
     @RequestParam(defaultValue = "1") int page,
     @RequestParam(defaultValue = "12") int size
   ) {
     require(q.length() <= 200, 400, "搜索词过长");
+    require(
+      Set.of("default", "date", "title", "category").contains(sort),
+      400,
+      "不支持的排序方式"
+    );
     var ids = c.descendants(category);
     var all = c
       .publicItems()
       .stream()
       .filter(v -> category.isBlank() || ids.contains(str(v, "categoryId")))
+      .filter(
+        v ->
+          productCategory.isBlank() ||
+          productCategory.equals(str(v, "productCategory"))
+      )
+      .filter(v -> tag.isBlank() || tag.equals(str(v, "productTag")))
       .filter(v ->
         (str(v, "title") + str(v, "excerpt") + str(v, "keywords"))
           .toLowerCase(Locale.ROOT)
           .contains(q.toLowerCase(Locale.ROOT))
       )
       .toList();
+    // Stable sorting preserves publication priority when the selected keys tie.
+    if (!sort.equals("default")) {
+      Comparator<Map<String, Object>> order = switch (sort) {
+        case "date" -> Comparator.comparing(
+          v -> str(v, "displayDate"),
+          Comparator.reverseOrder()
+        );
+        case "title" -> Comparator.comparing(
+          v -> str(v, "title"),
+          java.text.Collator.getInstance(Locale.CHINA)
+        );
+        default -> Comparator.comparing(
+          v -> str(v, "productCategory"),
+          java.text.Collator.getInstance(Locale.CHINA)
+        );
+      };
+      all = all.stream().sorted(order).toList();
+    }
     return paginate(all, page, size);
   }
 
@@ -67,6 +99,8 @@ public class ContentController {
     @RequestParam(defaultValue = "") String category,
     @RequestParam(defaultValue = "") String q,
     @RequestParam(defaultValue = "") String status,
+    @RequestParam(defaultValue = "") String industryRegion,
+    @RequestParam(defaultValue = "") String industryTopic,
     @RequestParam(defaultValue = "1") int page
   ) {
     var ids = c.descendants(category);
@@ -77,6 +111,18 @@ public class ContentController {
       .filter(Objects::nonNull)
       .filter(v -> category.isBlank() || ids.contains(str(v, "categoryId")))
       .filter(v -> str(v, "title").contains(q))
+      .filter(
+        v ->
+          industryRegion.isBlank() ||
+          (bool(v, "industryContent") &&
+            industryRegion.equals(str(v, "industryRegion")))
+      )
+      .filter(
+        v ->
+          industryTopic.isBlank() ||
+          (bool(v, "industryContent") &&
+            industryTopic.equals(str(v, "industryTopic")))
+      )
       .filter(v ->
         status.isBlank()
           ? !"DELETED".equals(v.get("status"))

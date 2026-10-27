@@ -156,7 +156,13 @@ public class MediaController {
     var setting = s.one("SELECT payload FROM site_settings WHERE id=1");
     if (setting != null) {
       var config = s.decode(setting.get("payload"));
-      for (String key : List.of("banners", "links", "partners", "navigation")) {
+      for (String key : List.of(
+        "banners",
+        "links",
+        "partners",
+        "departments",
+        "navigation"
+      )) {
         Object raw = config.get(key);
         if (raw instanceof List<?> list) for (Object x : list)
           if (

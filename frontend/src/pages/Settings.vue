@@ -2,26 +2,53 @@
 import { ref, reactive, watch } from "vue";
 import { useRoute } from "vue-router";
 import { api, send, upload, notify, refreshSite, date, type Row } from "../api";
+import ConstructionPartners from "../components/ConstructionPartners.vue";
 const route = useRoute(),
   categories = ref<Row[]>([]),
   site = ref<Row>({}),
   logs = ref<Row[]>([]),
   busy = ref(false),
   editing = ref(false),
+  uploading = ref<Row | null>(null),
   category = reactive<Row>({});
 const groups = [
-  { key: "banners", label: "首页轮播" },
-  { key: "links", label: "快捷入口" },
-  { key: "partners", label: "建设单位" },
-  { key: "navigation", label: "额外导航 / 外部业务入口" },
+  {
+    key: "banners",
+    label: "首页轮播",
+    image: true,
+    hint: "每张轮播分别设置标签、标题、说明、按钮和图片，切换时图文同步变化。建议上传 1920×600 横幅（PNG/JPG，10 MB 以内）；未上传时显示默认插画。",
+  },
+  {
+    key: "links",
+    label: "快捷入口",
+    image: true,
+    hint: "首页搜索区域右侧展示前两个入口。",
+  },
+  {
+    key: "partners",
+    label: "建设单位",
+    image: true,
+    hint: "默认展示参考图中的七家单位。添加自定义单位后，将按下方列表展示：标识保持原比例，全部展示、自动换行居中。支持 PNG/JPG，单张不超过 10 MB；保存后生效。",
+  },
+  {
+    key: "navigation",
+    label: "额外导航 / 外部业务入口",
+    image: false,
+    hint: "填写已有业务的名称和跳转地址。",
+  },
 ];
 async function load() {
   try {
     if (route.params.tab === "categories")
       categories.value = await api("/api/operator/categories");
-    else if (route.params.tab === "site")
+    else if (route.params.tab === "site") {
       site.value = await api("/api/operator/site");
-    else logs.value = await api("/api/operator/audit");
+      for (const group of groups) site.value[group.key] ||= [];
+      for (const banner of site.value.banners) {
+        banner.eyebrow ??= "让数据，转化为材料创新能力";
+        banner.buttonText ||= "探索更多";
+      }
+    } else logs.value = await api("/api/operator/audit");
   } catch (e) {
     notify((e as Error).message, true);
   }
@@ -69,6 +96,7 @@ async function remove(row: Row) {
   }
 }
 async function saveSite() {
+  if (uploading.value) return;
   busy.value = true;
   try {
     site.value = await send("/api/operator/site", site.value, "PUT");
@@ -81,16 +109,42 @@ async function saveSite() {
   }
 }
 async function image(e: Event, item: Row) {
-  const f = (e.target as HTMLInputElement).files?.[0];
+  const input = e.target as HTMLInputElement;
+  const f = input.files?.[0];
   if (!f) return;
-  busy.value = true;
+  input.value = "";
+  if (
+    !/\.(png|jpe?g)$/i.test(f.name) ||
+    !["image/png", "image/jpeg"].includes(f.type)
+  ) {
+    notify("请上传 PNG 或 JPG 图片", true);
+    return;
+  }
+  if (f.size > 10 * 1024 * 1024) {
+    notify("图片不能超过 10 MB", true);
+    return;
+  }
+  uploading.value = item;
   try {
     item.image = (await upload(f)).url;
+    notify("图片已上传，请保存站点配置使其在首页生效");
   } catch (e) {
     notify((e as Error).message, true);
   } finally {
-    busy.value = false;
+    uploading.value = null;
   }
+}
+function addItem(key: string) {
+  site.value[key] ||= [];
+  site.value[key].push({
+    title: "",
+    description: "",
+    url: "",
+    image: "",
+    ...(key === "banners"
+      ? { eyebrow: "让数据，转化为材料创新能力", buttonText: "探索更多" }
+      : {}),
+  });
 }
 const actions: Row = {
   SAVE_CONTENT: "保存草稿",
@@ -173,37 +227,67 @@ const actions: Row = {
     <h2>站点配置</h2>
     <div class="form-grid settings-basic">
       <label>站点名称<input v-model="site.name" required /></label
-      ><label>英文名称<input v-model="site.englishName" /></label
-      ><label class="full">页脚说明<input v-model="site.footer" /></label
-      ><label class="full">联系方式<input v-model="site.contact" /></label>
+      ><label>英文名称<input v-model="site.englishName" /></label>
+      <label
+        >备案号<input
+          v-model="site.registrationNumber"
+          maxlength="160"
+          placeholder="填写实际备案号"
+      /></label>
+      <label
+        >备案查询链接<input
+          v-model="site.registrationUrl"
+          maxlength="500"
+          placeholder="https://…（选填）"
+      /></label>
     </div>
-    <section class="settings-group" v-for="group in groups" :key="group.key">
+    <p class="settings-hint">
+      门户底部统一显示累计访问量、备案号和版权信息；备案号留空时不显示。
+    </p>
+    <section
+      class="settings-group"
+      :class="{ 'partner-settings': group.key === 'partners' }"
+      v-for="group in groups"
+      :key="group.key"
+      :aria-label="group.label"
+    >
       <h3>
         {{ group.label
         }}<button
           type="button"
           class="btn"
-          @click="
-            site[group.key].push({
-              title: '',
-              description: '',
-              url: '',
-              image: '',
-            })
-          "
+          :disabled="busy || !!uploading"
+          @click="addItem(group.key)"
         >
           ＋ 添加
         </button>
       </h3>
-      <p class="muted" v-if="!site[group.key]?.length">
-        尚未配置，门户将隐藏此区域的空入口。
+      <p class="settings-hint">{{ group.hint }}</p>
+      <div
+        v-if="group.key === 'partners' && !site.partners?.length"
+        class="settings-partner-preview"
+      >
+        <ConstructionPartners :partners="[]" />
+      </div>
+      <p
+        class="muted"
+        v-if="!site[group.key]?.length && group.key !== 'partners'"
+      >
+        尚未配置，点击“添加”后填写并保存即可展示。
       </p>
-      <div class="setting-row" v-for="(item, i) in site[group.key]" :key="i">
+      <div
+        class="setting-row"
+        :class="{ 'banner-setting-row': group.key === 'banners' }"
+        v-for="(item, i) in site[group.key]"
+        :key="i"
+      >
         <div class="setting-order">
           <b>{{ Number(i) + 1 }}</b
           ><button
             type="button"
             v-if="Number(i) > 0"
+            :disabled="busy || !!uploading"
+            :aria-label="`上移${item.title || group.label}`"
             @click="
               [site[group.key][Number(i) - 1], site[group.key][i]] = [
                 site[group.key][i],
@@ -216,27 +300,69 @@ const actions: Row = {
         </div>
         <div class="setting-fields">
           <label
-            >标题<input v-model="item.title" required maxlength="100" /></label
+            >{{ group.key === "partners" ? "单位名称" : "标题"
+            }}<input v-model="item.title" required maxlength="100" /></label
           ><label
-            >跳转地址<input
+            >{{ group.key === "partners" ? "官方网站（选填）" : "跳转地址"
+            }}<input
               v-model="item.url"
               placeholder="/columns/resources 或 https://…" /></label
-          ><label class="full"
+          ><label v-if="group.key !== 'partners'" class="full"
             >描述<input v-model="item.description" maxlength="300"
           /></label>
+          <template v-if="group.key === 'banners'">
+            <label
+              >顶部标签（选填）<input
+                v-model="item.eyebrow"
+                maxlength="100"
+                placeholder="留空则不显示标签"
+            /></label>
+            <label
+              >按钮文字<input
+                v-model="item.buttonText"
+                maxlength="40"
+                placeholder="探索更多"
+            /></label>
+          </template>
         </div>
-        <div class="setting-image">
-          <img v-if="item.image" :src="item.image" alt="配置图片" /><label
-            class="btn"
-            >{{ item.image ? "更换图片" : "上传图片"
+        <div
+          v-if="group.image"
+          class="setting-image"
+          :aria-busy="uploading === item"
+        >
+          <img
+            v-if="item.image"
+            :src="item.image"
+            :alt="item.title || '单位图片预览'"
+          />
+          <span
+            v-else-if="group.key === 'partners'"
+            class="partner-image-placeholder"
+            >单位标识预览</span
+          >
+          <span
+            v-else-if="group.key === 'banners'"
+            class="banner-image-placeholder"
+            >第 {{ Number(i) + 1 }} 张轮播 · 默认插画</span
+          >
+          <label class="btn"
+            >{{
+              uploading === item
+                ? "上传中…"
+                : item.image
+                  ? "更换图片"
+                  : "上传图片"
             }}<input
               type="file"
               accept="image/png,image/jpeg"
+              :disabled="busy || !!uploading"
+              :aria-label="`上传${item.title || group.label}图片`"
               hidden
               @change="image($event, item)" /></label
           ><button
             type="button"
             v-if="item.image"
+            :disabled="busy || !!uploading"
             class="text-button"
             @click="item.image = ''"
           >
@@ -246,6 +372,7 @@ const actions: Row = {
         <button
           type="button"
           class="text-button danger-text"
+          :disabled="busy || !!uploading"
           @click="site[group.key].splice(Number(i), 1)"
         >
           删除
@@ -254,7 +381,9 @@ const actions: Row = {
     </section>
     <div class="editor-actions">
       <span>保存后立即更新门户展示</span
-      ><button class="btn primary" :disabled="busy">保存站点配置</button>
+      ><button class="btn primary" :disabled="busy || !!uploading">
+        保存站点配置
+      </button>
     </div>
   </form>
   <section v-else class="admin-panel settings-panel">
@@ -343,3 +472,42 @@ const actions: Row = {
     </form>
   </div>
 </template>
+<style scoped>
+.settings-partner-preview {
+  border: 1px solid #e1e7ef;
+  border-radius: 8px;
+  background: #fff;
+  padding: 20px;
+}
+.banner-setting-row .setting-image {
+  width: 250px;
+  flex-shrink: 0;
+}
+.banner-setting-row .setting-image img,
+.banner-image-placeholder {
+  width: 250px;
+  height: 100px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #edf4fc;
+}
+.banner-image-placeholder {
+  display: grid;
+  place-items: center;
+  color: #5f7a98;
+  font-size: 13px;
+}
+@media (max-width: 1000px) {
+  .banner-setting-row {
+    flex-wrap: wrap;
+  }
+  .banner-setting-row .setting-fields {
+    min-width: 60%;
+  }
+}
+@media (max-width: 700px) {
+  .banner-setting-row .setting-fields {
+    width: 100%;
+  }
+}
+</style>

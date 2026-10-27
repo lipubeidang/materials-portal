@@ -2,6 +2,14 @@
 import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { state, logout, categoryPath } from "../api";
+import portalLogo from "../assets/portal-logo.png";
+const props = defineProps<{ home?: boolean }>();
+const omittedHomeEntries = new Set([
+  "数据检索",
+  "在线开发",
+  "在线研发",
+  "全球材料数据库",
+]);
 const expanded = ref(false);
 const route = useRoute();
 const activeCategory = computed(() =>
@@ -20,15 +28,52 @@ watch(
   () => route.fullPath,
   () => (expanded.value = false),
 );
-const roots = computed(() =>
-  state.categories.filter((c) => !c.parent_id && c.navigation),
+const roots = computed(() => {
+  const categories = state.categories.filter(
+    (c) =>
+      !c.parent_id &&
+      c.navigation &&
+      (!props.home || !omittedHomeEntries.has(c.name)),
+  );
+  const newsIndex = categories.findIndex((c) => c.id === "news");
+  if (newsIndex < 0) return categories;
+  const dataEntries = ["resources", "products"]
+    .map((id) => categories.find((c) => c.id === id))
+    .filter((c) => c !== undefined);
+  const ordered = categories.filter((c) => !dataEntries.includes(c));
+  ordered.splice(
+    ordered.findIndex((c) => c.id === "news") + 1,
+    0,
+    ...dataEntries,
+  );
+  return ordered;
+});
+const extraNavigation = computed(() =>
+  (state.site.navigation || []).filter(
+    (item: { title: string }) =>
+      !props.home || !omittedHomeEntries.has(item.title),
+  ),
 );
+function hasDropdown(id: string) {
+  return (
+    id !== "industry" &&
+    id !== "resources" &&
+    id !== "news" &&
+    id !== "cooperation" &&
+    state.categories.some((c) => c.parent_id === id)
+  );
+}
 </script>
 <template>
   <div class="brand-bar container">
     <RouterLink to="/" class="brand"
-      ><span class="brand-mark">M<span>·</span>D</span
-      ><span
+      ><img
+        class="portal-logo"
+        :src="portalLogo"
+        alt="四川大学、四川大学生物医学工程学院、NEBM、四川省生物医学工程学会标识"
+        width="1894"
+        height="518"
+      /><span class="brand-name"
         ><strong>{{ state.site.name }}</strong
         ><small>{{ state.site.englishName }}</small></span
       ></RouterLink
@@ -95,15 +140,9 @@ const roots = computed(() =>
             :to="categoryPath(c.id)"
             :class="{ 'active-section': activeSection(c.id) }"
             @click="expanded = false"
-            >{{ c.name
-            }}<span v-if="state.categories.some((x) => x.parent_id === c.id)"
-              >⌄</span
-            ></RouterLink
+            >{{ c.name }}<span v-if="hasDropdown(c.id)">⌄</span></RouterLink
           >
-          <div
-            class="dropdown"
-            v-if="state.categories.some((x) => x.parent_id === c.id)"
-          >
+          <div class="dropdown" v-if="hasDropdown(c.id)">
             <RouterLink
               v-for="child in state.categories.filter(
                 (x) => x.parent_id === c.id,
@@ -115,7 +154,7 @@ const roots = computed(() =>
           </div>
         </div>
         <a
-          v-for="item in state.site.navigation"
+          v-for="item in extraNavigation"
           :key="item.title"
           :href="item.url"
           rel="noopener noreferrer"

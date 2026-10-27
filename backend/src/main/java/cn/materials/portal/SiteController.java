@@ -170,30 +170,7 @@ public class SiteController {
         .limit(60)
         .toList(),
       "latest",
-      all.stream().limit(5).toList(),
-      "statistics",
-      List.of(
-        Map.of("label", "公开内容", "value", all.size()),
-        Map.of("label", "内容栏目", "value", ((List<?>) categories()).size()),
-        Map.of(
-          "label",
-          "资源介绍",
-          "value",
-          all
-            .stream()
-            .filter(v -> "RESOURCE".equals(v.get("type")))
-            .count()
-        ),
-        Map.of(
-          "label",
-          "产品介绍",
-          "value",
-          all
-            .stream()
-            .filter(v -> "PRODUCT".equals(v.get("type")))
-            .count()
-        )
-      )
+      all.stream().limit(5).toList()
     );
   }
 
@@ -207,7 +184,24 @@ public class SiteController {
       clean.put(key, value);
     }
     require(!str(clean, "name").isBlank(), 400, "请填写站点名称");
-    for (String key : List.of("banners", "links", "partners", "navigation")) {
+    String registrationNumber = str(b, "registrationNumber").trim();
+    String registrationUrl = str(b, "registrationUrl").trim();
+    require(registrationNumber.length() <= 160, 400, "备案号过长");
+    require(
+      registrationUrl.length() <= 500 &&
+        ContentService.safeUrl(registrationUrl),
+      400,
+      "备案查询链接不正确"
+    );
+    clean.put("registrationNumber", registrationNumber);
+    clean.put("registrationUrl", registrationUrl);
+    for (String key : List.of(
+      "banners",
+      "links",
+      "partners",
+      "departments",
+      "navigation"
+    )) {
       List<Map<String, Object>> result = new ArrayList<>();
       Object raw = b.get(key);
       if (raw instanceof List<?> list) {
@@ -241,7 +235,7 @@ public class SiteController {
             400,
             "图片不存在"
           );
-          result.add(
+          var entry = new LinkedHashMap<String, Object>(
             Map.of(
               "title",
               title,
@@ -253,6 +247,24 @@ public class SiteController {
               description
             )
           );
+          if (key.equals("banners")) {
+            String eyebrow = str(m, "eyebrow").trim();
+            String buttonText = str(m, "buttonText").trim();
+            require(
+              eyebrow.length() <= 100 && buttonText.length() <= 40,
+              400,
+              "轮播标签或按钮文字过长"
+            );
+            entry.put(
+              "eyebrow",
+              m.containsKey("eyebrow") ? eyebrow : "让数据，转化为材料创新能力"
+            );
+            entry.put(
+              "buttonText",
+              buttonText.isBlank() ? "探索更多" : buttonText
+            );
+          }
+          result.add(entry);
         }
       }
       clean.put(key, result);
