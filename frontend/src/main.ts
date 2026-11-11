@@ -6,6 +6,7 @@ import ContentPage from "./pages/ContentPage.vue";
 import Login from "./pages/Login.vue";
 import Account from "./pages/Account.vue";
 import { initialize, state, notify, recordVisit } from "./api";
+import { recordCenterVisit } from "./center-visits";
 import "./style.css";
 import "./styles/portal.css";
 const router = createRouter({
@@ -64,7 +65,9 @@ router.afterEach((to, from, failure) => {
     !to.path.startsWith("/operator") &&
     (!from.matched.length ||
       to.fullPath.split("#")[0] !== from.fullPath.split("#")[0])
-  )
+  ) {
     void recordVisit();
+    recordCenterVisit(state.user.centerUserName);
+  }
 });
 createApp(App).use(router).mount("#app");

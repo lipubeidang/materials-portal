@@ -73,7 +73,7 @@ class CenterIntegrationTest {
       });
       server.createContext("/oauth/userinfo", exchange -> {
         byte[] bytes =
-          "{\"id\":\"center-1001\",\"username\":\"中心测试用户\"}".getBytes(
+          "{\"id\":\"center-1001\",\"username\":\"中心测试用户\",\"userName\":\"center_account\"}".getBytes(
             StandardCharsets.UTF_8
           );
         exchange.sendResponseHeaders(200, bytes.length);
@@ -180,6 +180,8 @@ class CenterIntegrationTest {
     var me = s.decode(result.getResponse().getContentAsString());
     assertEquals("MEMBER", me.get("role"));
     assertEquals("center", me.get("source"));
+    assertEquals("center_account", me.get("centerUserName"));
+    assertNotEquals(me.get("username"), me.get("centerUserName"));
     assertTrue(lastRequest.contains("name=\"code_verifier\""));
     assertTrue(lastRequest.contains(str(context, "verifier")));
     mvc

@@ -106,6 +106,8 @@ public class Auth {
       u.get("role"),
       "source",
       u.get("source"),
+      "centerUserName",
+      str(u, "center_username"),
       "csrf",
       u.get("csrf"),
       "hasPassword",

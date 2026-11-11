@@ -283,6 +283,8 @@ public class CenterService {
     var info = call("/oauth/userinfo", Map.of(), access);
     String external = at(info, config("user-id-path")),
       name = at(info, config("user-name-path"));
+    String centerUserName = at(info, "userName");
+    if (centerUserName.isBlank()) centerUserName = name;
     require(
       !external.isBlank() && external.length() <= 160,
       502,
@@ -360,11 +362,12 @@ public class CenterService {
       refresh = crypt(str(tokens, "refreshToken"), true);
     var session = a.createSession(uid, "center", request, response);
     s.update(
-      "UPDATE sessions SET access_token=?,refresh_token=?,token_expires=?,external_id=?,checked_at=? WHERE token_hash=?",
+      "UPDATE sessions SET access_token=?,refresh_token=?,token_expires=?,external_id=?,center_username=?,checked_at=? WHERE token_hash=?",
       encrypted,
       refresh,
       now() + Math.max(1, num(tokens, "expiresIn", 43200)) * 1000L,
       external,
+      centerUserName,
       now(),
       session.get("token_hash")
     );
