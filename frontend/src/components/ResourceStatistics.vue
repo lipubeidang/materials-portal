@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { api } from "../api";
+
+const refreshIntervalMs = 5_000;
+let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+let refreshActive = false;
 
 const statistics = ref<{ key: string; label: string; value: string | null }[]>([
   { key: "templateCount", label: "模板量", value: null },
@@ -11,6 +15,7 @@ const statistics = ref<{ key: string; label: string; value: string | null }[]>([
   { key: "underReleaseDataCount", label: "发布中数据量", value: null },
 ]);
 const loading = ref(false),
+  hasLoaded = ref(false),
   error = ref("");
 const icons: Record<string, string> = {
   templateCount:
@@ -37,12 +42,24 @@ async function load() {
     error.value = (e as Error).message;
   } finally {
     loading.value = false;
+    hasLoaded.value = true;
   }
+}
+async function refresh() {
+  await load();
+  if (refreshActive) refreshTimer = setTimeout(refresh, refreshIntervalMs);
 }
 function format(value: string | null) {
   return value === null ? "—" : value.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
-onMounted(load);
+onMounted(() => {
+  refreshActive = true;
+  void refresh();
+});
+onUnmounted(() => {
+  refreshActive = false;
+  clearTimeout(refreshTimer);
+});
 </script>
 
 <template>
@@ -73,7 +90,9 @@ onMounted(load);
         >
       </div>
     </div>
-    <p v-if="loading" class="resource-status" role="status">正在加载统计…</p>
+    <p v-if="loading && !hasLoaded" class="resource-status" role="status">
+      正在加载统计…
+    </p>
     <p v-else-if="error" class="resource-status" role="status">
       {{ error }} <button type="button" @click="load">重试</button>
     </p>

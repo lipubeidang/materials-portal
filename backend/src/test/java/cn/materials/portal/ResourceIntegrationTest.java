@@ -129,6 +129,21 @@ class ResourceIntegrationTest {
   }
 
   @Test
+  void doesNotCacheStatisticsByDefault() throws Exception {
+    response = """
+    {"code":200,"data":{"templateCount":131,"fragmentCount":85,"datasetCount":42,
+      "dataCount":66062,"publicDataCount":0,"underReleaseDataCount":0}}
+    """;
+    mvc
+      .perform(get("/api/public/resources/statistics"))
+      .andExpect(status().isOk());
+    mvc
+      .perform(get("/api/public/resources/statistics"))
+      .andExpect(status().isOk());
+    assertEquals(2, requests.get());
+  }
+
+  @Test
   void supportsServerSideConfigurationWithoutReturningAuthorization()
     throws Exception {
     env

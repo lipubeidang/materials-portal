@@ -27,6 +27,7 @@ app:
     statistics-path: ${RESOURCE_STATISTICS_PATH:/dynamics/homePage/getHomePage}
     authorization: ${RESOURCE_AUTHORIZATION:}
     cache-seconds: ${RESOURCE_CACHE_SECONDS:60}
+    statistics-cache-seconds: ${RESOURCE_STATISTICS_CACHE_SECONDS:0}
   center:
     enabled: ${CENTER_ENABLED:false}
     base-url: ${CENTER_BASE_URL:}

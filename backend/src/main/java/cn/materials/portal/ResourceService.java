@@ -46,7 +46,7 @@ public class ResourceService {
         "{\"statType\":\"1\"}"
       );
       return readDirectories(data.path("treeStat"), 0);
-    }, cacheMillis());
+    }, cacheMillis("cache-seconds", 60L));
   }
 
   public List<Statistic> statistics() {
@@ -60,14 +60,14 @@ public class ResourceService {
         statistic(data, "publicDataCount", "已发布数据量"),
         statistic(data, "underReleaseDataCount", "发布中数据量")
       );
-    }, cacheMillis());
+    }, cacheMillis("statistics-cache-seconds", 0L));
   }
 
-  private long cacheMillis() {
+  private long cacheMillis(String key, long defaultSeconds) {
     return (
       Math.max(
         0,
-        env.getProperty("app.resources.cache-seconds", Long.class, 60L)
+        env.getProperty("app.resources." + key, Long.class, defaultSeconds)
       ) * 1000
     );
   }
