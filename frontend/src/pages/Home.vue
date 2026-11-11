@@ -7,6 +7,7 @@ import ResourceStatistics from "../components/ResourceStatistics.vue";
 import HomeScienceArt from "../components/HomeScienceArt.vue";
 import HomeCrystalArt from "../components/HomeCrystalArt.vue";
 import HomeResourceOverview from "../components/HomeResourceOverview.vue";
+import databaseWorkflowImage from "../assets/database-workflow.png";
 import "../styles/home.css";
 
 const router = useRouter();
@@ -114,9 +115,23 @@ function find() {
                 <span aria-hidden="true">→</span></a
               >
             </div>
-            <template v-if="!banners[index].image"
-              ><HomeScienceArt v-if="index % 2 === 0" /><HomeCrystalArt v-else
-            /></template>
+            <template v-if="!banners[index].image">
+              <a
+                v-if="index === 1"
+                class="hero-feature-link"
+                href="http://171.221.175.91:50003/database-code/home"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="进入数据模板创建、上传与发布系统"
+              >
+                <img
+                  :src="databaseWorkflowImage"
+                  alt="数据模板创建、上传与发布操作界面"
+                />
+              </a>
+              <HomeScienceArt v-else-if="index % 2 === 0" />
+              <HomeCrystalArt v-else />
+            </template>
           </div>
         </div>
       </template>
