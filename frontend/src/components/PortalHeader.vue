@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { state, logout, categoryPath } from "../api";
+import materialsDataCenterLogo from "../assets/新材料大数据中心Logo.png";
 import portalLogo from "../assets/portal-logo.png";
 const props = defineProps<{ home?: boolean }>();
 const omittedHomeEntries = new Set([
@@ -66,18 +67,24 @@ function hasDropdown(id: string) {
 </script>
 <template>
   <div class="brand-bar container">
-    <RouterLink to="/" class="brand"
-      ><img
+    <RouterLink to="/" class="brand home-brand">
+      <img
+        class="materials-data-center-logo"
+        :src="materialsDataCenterLogo"
+        alt="新材料大数据中心 National Materials Big Data Center"
+        width="300"
+        height="60"
+      />
+      <span class="home-brand-divider" aria-hidden="true"></span>
+      <img
         class="portal-logo"
         :src="portalLogo"
         alt="四川大学、四川大学生物医学工程学院、NEBM、四川省生物医学工程学会标识"
         width="1894"
         height="518"
-      /><span class="brand-name"
-        ><strong>{{ state.site.name }}</strong
-        ><small>{{ state.site.englishName }}</small></span
-      ></RouterLink
-    >
+      />
+      <strong class="resource-node-name">新一代生物医用材料数据资源节点</strong>
+    </RouterLink>
     <div class="account-links">
       <template v-if="state.user.authenticated">
         <RouterLink

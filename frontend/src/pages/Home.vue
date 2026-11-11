@@ -6,7 +6,6 @@ import SlideCarousel from "../components/SlideCarousel.vue";
 import ResourceStatistics from "../components/ResourceStatistics.vue";
 import HomeScienceArt from "../components/HomeScienceArt.vue";
 import HomeCrystalArt from "../components/HomeCrystalArt.vue";
-import ConstructionPartners from "../components/ConstructionPartners.vue";
 import HomeResourceOverview from "../components/HomeResourceOverview.vue";
 import "../styles/home.css";
 
@@ -64,8 +63,6 @@ const quickLinks = computed<Row[]>(() =>
     )
     .slice(0, 2),
 );
-const partners = computed<Row[]>(() => state.site.partners || []);
-
 onMounted(async () => {
   try {
     const result = await api("/api/public/home");
@@ -350,15 +347,5 @@ function find() {
         </div>
       </div>
     </div>
-    <section class="home-organizations">
-      <div class="container">
-        <div class="section-heading">
-          <h2>建设单位</h2>
-        </div>
-        <div class="organization-panel">
-          <ConstructionPartners :partners="partners" />
-        </div>
-      </div>
-    </section>
   </div>
 </template>

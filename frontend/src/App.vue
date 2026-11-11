@@ -6,11 +6,19 @@ import PortalHeader from "./components/PortalHeader.vue";
 import PortalFooter from "./components/PortalFooter.vue";
 const route = useRoute();
 const admin = computed(() => route.path.startsWith("/operator"));
+const auth = computed(() => ["/login", "/register"].includes(route.path));
 const home = computed(() => route.path === "/");
 </script>
 <template>
   <div v-if="!state.ready" class="loading">正在载入新材料门户…</div>
-  <div v-else :class="{ 'portal-shell': !admin, 'homepage-shell': home }">
+  <div
+    v-else
+    :class="{
+      'portal-shell': !admin && !auth,
+      'homepage-shell': home,
+      'auth-layout': auth,
+    }"
+  >
     <header v-if="admin" class="admin-top">
       <RouterLink to="/" class="admin-brand"
         ><span class="brand-mark">M<span>·</span>D</span
@@ -28,9 +36,11 @@ const home = computed(() => route.path === "/");
         {{ state.user.name }} · 操作员 <button @click="logout">退出</button>
       </div>
     </header>
-    <PortalHeader v-else :home="home" />
-    <main :class="{ 'admin-main': admin }"><RouterView /></main>
-    <PortalFooter v-if="!admin" />
+    <PortalHeader v-else-if="!auth" :home="home" />
+    <main :class="{ 'admin-main': admin, 'auth-main': auth }">
+      <RouterView />
+    </main>
+    <PortalFooter v-if="!admin && !auth" />
   </div>
   <div
     v-if="state.notice || state.error"
