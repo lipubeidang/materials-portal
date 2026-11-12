@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { state } from "../api";
 import footerLogo from "../assets/footer-logo.png";
+import publicSecurityIcon from "../assets/备案小图标.png";
 
 type FooterPartner = {
   title: string;
@@ -39,6 +40,7 @@ const partners = computed<FooterPartner[]>(() => {
             height="97"
             alt="新材料大数据中心 National Materials Big Data Center"
           />
+          <strong>新一代生物医用材料数据资源节点</strong>
         </RouterLink>
         <nav class="portal-footer-partners" aria-label="建设单位">
           <strong class="portal-footer-partners-title">建设单位</strong>
@@ -70,6 +72,15 @@ const partners = computed<FooterPartner[]>(() => {
             }}</b>
           </span>
           <div class="portal-footer-legal">
+            <a
+              class="public-security-registration"
+              href="https://beian.mps.gov.cn/#/query/webSearch?code=51010702044422"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img :src="publicSecurityIcon" alt="" aria-hidden="true" />
+              <span>川公网安备51010702044422号</span>
+            </a>
             <component
               v-if="state.site.registrationNumber"
               :is="state.site.registrationUrl ? 'a' : 'span'"
