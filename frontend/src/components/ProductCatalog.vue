@@ -3,7 +3,6 @@ import { computed, ref, watch, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api, type Row } from "../api";
 import { productCategories, productTags } from "../products";
-import HomeCrystalArt from "./HomeCrystalArt.vue";
 import "../styles/products.css";
 
 const props = defineProps<{ category: Row }>();
@@ -91,14 +90,7 @@ onBeforeUnmount(() => requestId++);
           </button>
         </nav>
       </aside>
-      <section class="product-store" aria-label="应用商店">
-        <div class="product-store-banner">
-          <div>
-            <h2>应用商店</h2>
-            <p>汇聚材料数据产品，助力科研创新</p>
-          </div>
-          <HomeCrystalArt />
-        </div>
+      <section class="product-store" aria-label="数据产品列表">
         <div class="product-search-row">
           <form
             class="product-search"

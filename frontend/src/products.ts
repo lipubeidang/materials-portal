@@ -5,8 +5,5 @@ export const productCategories = [
   "工程应用软件",
   "材料专题模型",
   "数据集",
-  "数据API",
-  "数据报告",
-  "定制服务",
 ];
-export const productTags = ["中心自研", "联合发布", "领域集成"];
+export const productTags = ["节点自研", "子节点提供", "领域集成"];
