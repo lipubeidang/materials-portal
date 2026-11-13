@@ -998,7 +998,7 @@ small,
   min-height: 55vh;
 }
 .content-layout.reading-layout {
-  max-width: 920px;
+  max-width: 1320px;
 }
 .content-panel {
   min-width: 0;
@@ -1008,14 +1008,26 @@ small,
   justify-content: space-between;
   align-items: center;
   gap: 20px;
-  padding-bottom: 22px;
-  margin-bottom: 34px;
-  border-bottom: 1px solid var(--line);
+  padding: 13px 18px;
+  margin-bottom: 30px;
+  border: 1px solid #e3ebf2;
+  border-radius: 8px;
+  background: #f7fafd;
 }
 .back-to-list {
-  color: #4d7f9f;
-  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 5px;
+  color: #3975a2;
+  font-size: 13px;
+  font-weight: 500;
   white-space: nowrap;
+  transition:
+    color 0.2s,
+    background-color 0.2s;
+}
+.back-to-list:hover {
+  color: #155f9b;
+  background: #e8f1f8;
 }
 .collection-heading {
   display: flex;
@@ -1102,16 +1114,26 @@ small,
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  font-size: 12px;
-  color: #8b9aa7;
-  line-height: 1.8;
+  gap: 9px;
+  font-size: 13px;
+  color: #718697;
+  line-height: 1.65;
+  letter-spacing: 0.01em;
 }
 .breadcrumbs a {
-  color: #5b7d97;
+  color: #527b9b;
+  transition: color 0.2s;
 }
 .breadcrumbs a:hover {
   color: var(--accent);
+}
+.breadcrumbs > span[aria-hidden="true"] {
+  color: #b9c5cf;
+  font-size: 11px;
+}
+.breadcrumbs [aria-current="page"] {
+  color: #304e66;
+  font-weight: 500;
 }
 .article h1 {
   font-size: 27px;
@@ -2542,7 +2564,7 @@ td:nth-child(4) {
   .content-path {
     gap: 12px;
     margin-bottom: 26px;
-    padding-bottom: 18px;
+    padding: 12px 14px;
     align-items: flex-start;
   }
   .collection-heading {

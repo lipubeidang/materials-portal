@@ -173,8 +173,8 @@ function fileSize(bytes: number) {
   min-width: 0;
 }
 .article-heading {
-  padding-bottom: 26px;
-  margin-bottom: 32px;
+  padding: 4px 0 30px;
+  margin-bottom: 36px;
   border-bottom: 1px solid var(--line);
 }
 .article-kicker {
@@ -186,8 +186,8 @@ function fileSize(bytes: number) {
 }
 .reading-article h1 {
   margin: 0;
-  font-size: clamp(25px, 2.5vw, 36px);
-  line-height: 1.5;
+  font-size: clamp(28px, 2.5vw, 42px);
+  line-height: 1.4;
   text-align: left;
   letter-spacing: 0.01em;
   overflow-wrap: anywhere;
@@ -230,12 +230,12 @@ function fileSize(bytes: number) {
   border-radius: 6px;
 }
 .reading-body {
-  font-size: 17px;
-  line-height: 2;
-  color: #34495a;
+  font-size: 18px;
+  line-height: 2.05;
+  color: #30485a;
 }
 .reading-body :deep(p) {
-  margin: 0 0 1.4em;
+  margin: 0 0 1.5em;
 }
 .reading-body :deep(h2) {
   margin: 36px 0 16px;
