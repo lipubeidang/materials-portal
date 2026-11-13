@@ -493,76 +493,17 @@
   align-self: center;
 }
 .home-page .home-resource-overview {
-  border: 1px solid #e0e6ed;
   border-radius: 9px;
   overflow: hidden;
-  background: linear-gradient(180deg, #f7faff, #eaf6ff);
+  background: #063877;
 }
-.resource-network {
+.home-resource-image-link {
   display: block;
-  position: relative;
-  height: 280px;
 }
-.resource-network svg {
+.home-resource-image-link img {
+  display: block;
   width: 100%;
-  height: 100%;
-}
-.network-heading {
-  position: absolute;
-  top: 25px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #176ac4;
-  font-size: 22px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.network-caption {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #5d93bd;
-  font-size: 13px;
-  letter-spacing: 3px;
-  white-space: nowrap;
-}
-.network-label {
-  position: absolute;
-  top: 40%;
-  padding: 8px 18px;
-  border: 1px solid #80bcf0;
-  background: #f3faff;
-  box-shadow: 0 2px 7px #2c8ed224;
-  border-radius: 10px;
-  color: #3579ba;
-  font-size: 15px;
-}
-.network-label-left {
-  left: 13%;
-}
-.network-label-right {
-  right: 13%;
-}
-.home-resource-overview .catalog-preview {
-  padding: 22px;
-}
-.home-resource-overview .directory-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-.home-resource-overview .directory-card {
-  padding: 17px 15px;
-  border-color: #cde0f2;
-  background: #ffffffdb;
-}
-.home-resource-overview .directory-card svg {
-  width: 30px;
-  height: 30px;
-  flex-basis: 30px;
-}
-.home-resource-overview .directory-copy strong {
-  font-size: 14px;
+  height: auto;
 }
 .home-page .home-resource-columns > section {
   display: flex;
@@ -665,9 +606,6 @@
     width: 44px;
     height: 50px;
   }
-  .resource-network {
-    height: 330px;
-  }
 }
 @media (max-width: 1200px) {
   .home-page .overview {
@@ -725,9 +663,6 @@
   .home-page .product-row h3 {
     font-size: 15px;
   }
-  .resource-network {
-    height: 240px;
-  }
 }
 @media (max-width: 1000px) and (min-width: 701px) {
   .home-page .hero-copy {
@@ -756,19 +691,6 @@
   }
   .home-page .home-products {
     min-height: 280px;
-  }
-  .home-resource-overview .directory-grid {
-    grid-template-columns: 1fr;
-  }
-  .network-label {
-    padding: 5px 10px;
-    font-size: 12px;
-  }
-  .network-label-left {
-    left: 7%;
-  }
-  .network-label-right {
-    right: 7%;
   }
 }
 @media (max-width: 700px) {
@@ -966,34 +888,6 @@
   }
   .home-page .product-row h3 {
     font-size: 16px;
-  }
-  .resource-network {
-    height: 210px;
-  }
-  .network-heading {
-    top: 18px;
-    font-size: 20px;
-  }
-  .network-caption {
-    font-size: 11px;
-    letter-spacing: 2px;
-  }
-  .network-label {
-    top: 40%;
-    padding: 5px 10px;
-    font-size: 12px;
-  }
-  .network-label-left {
-    left: 6%;
-  }
-  .network-label-right {
-    right: 6%;
-  }
-  .home-resource-overview .catalog-preview {
-    padding: 18px 14px;
-  }
-  .home-resource-overview .directory-grid {
-    grid-template-columns: 1fr;
   }
   .home-page .home-organizations {
     padding: 32px 0;
