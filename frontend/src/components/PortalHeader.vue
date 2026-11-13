@@ -11,6 +11,7 @@ const omittedHomeEntries = new Set([
   "在线研发",
   "全球材料数据库",
 ]);
+const hiddenNavigationCategoryIds = new Set(["notices", "industry"]);
 const expanded = ref(false);
 const route = useRoute();
 const activeCategory = computed(() =>
@@ -34,6 +35,7 @@ const roots = computed(() => {
     (c) =>
       !c.parent_id &&
       c.navigation &&
+      !hiddenNavigationCategoryIds.has(c.id) &&
       (!props.home || !omittedHomeEntries.has(c.name)),
   );
   const newsIndex = categories.findIndex((c) => c.id === "news");
