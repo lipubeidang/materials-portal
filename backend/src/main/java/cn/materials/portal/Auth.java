@@ -124,6 +124,13 @@ public class Auth {
     );
   }
 
+  String location(String path) {
+    if (!path.startsWith("/")) throw new IllegalArgumentException(
+      "Redirect path must start with /"
+    );
+    return origin.replaceFirst("/+$", "") + path;
+  }
+
   void csrf(HttpServletRequest r) {
     checkOrigin(r);
     var u = requireUser(r);

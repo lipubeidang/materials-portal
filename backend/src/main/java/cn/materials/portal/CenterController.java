@@ -30,7 +30,7 @@ public class CenterController {
       response.sendRedirect(center.start(r, response, null));
     } catch (org.springframework.web.server.ResponseStatusException e) {
       response.sendRedirect(
-        "/login?error=" +
+        a.location("/login?error=") +
           CenterService.url(Objects.toString(e.getReason(), "认证失败"))
       );
     }
@@ -62,10 +62,10 @@ public class CenterController {
   ) throws IOException {
     try {
       center.callback(tx, code, r, response);
-      response.sendRedirect("/account");
+      response.sendRedirect(a.location("/account"));
     } catch (org.springframework.web.server.ResponseStatusException e) {
       response.sendRedirect(
-        "/login?error=" +
+        a.location("/login?error=") +
           CenterService.url(Objects.toString(e.getReason(), "认证失败"))
       );
     }

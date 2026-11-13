@@ -24,10 +24,12 @@ import org.springframework.test.web.servlet.MvcResult;
   properties = {
     "spring.datasource.url=jdbc:h2:mem:center;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
     "app.demo=false",
+    "app.origin=http://portal.example:50010",
     "app.center.enabled=true",
     "app.center.client-id=test-client",
     "app.center.client-secret=0123456789abcdefEXTRA",
     "app.center.callback=http://localhost:5173/auth/center/callback",
+    "app.center.user-id-path=id",
     "app.center.encryption-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
     "app.center.logout-key=test-webhook-secret",
     "app.center.logout-ips=",
@@ -149,7 +151,7 @@ class CenterIntegrationTest {
           .param("code", "OC-test")
           .cookie(start.browser())
       )
-      .andExpect(redirectedUrl("/account"))
+      .andExpect(redirectedUrl("http://portal.example:50010/account"))
       .andReturn();
     String cookie = result
       .getResponse()
@@ -191,7 +193,9 @@ class CenterIntegrationTest {
           .param("code", "OC-test")
           .cookie(pending.browser())
       )
-      .andExpect(redirectedUrlPattern("/login?error=*"));
+      .andExpect(
+        redirectedUrlPattern("http://portal.example:50010/login?error=*")
+      );
   }
 
   @Test
@@ -204,7 +208,9 @@ class CenterIntegrationTest {
           .param("code", "OC-test")
           .cookie(new Cookie("CENTER_BROWSER", "wrong-browser"))
       )
-      .andExpect(redirectedUrlPattern("/login?error=*"));
+      .andExpect(
+        redirectedUrlPattern("http://portal.example:50010/login?error=*")
+      );
     assertNotNull(
       s.one("SELECT id FROM auth_transactions WHERE id=?", pending.tx())
     );
@@ -225,7 +231,9 @@ class CenterIntegrationTest {
           .param("code", "OC-test")
           .cookie(pending.browser())
       )
-      .andExpect(redirectedUrlPattern("/login?error=*"));
+      .andExpect(
+        redirectedUrlPattern("http://portal.example:50010/login?error=*")
+      );
   }
 
   @Test
