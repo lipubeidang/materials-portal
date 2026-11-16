@@ -88,13 +88,38 @@ public class Bootstrap implements ApplicationRunner {
       category("resources", "数据资源", null, "RESOURCE", "cards", 7);
       category("products", "数据产品", null, "PRODUCT", "cards", 8);
       category("cooperation", "交流合作", null, "ARTICLE", "list", 9);
-      category("cooperation-conferences", "学术会议", "cooperation", "ARTICLE", "list", 91);
-      category("cooperation-journals", "学术期刊", "cooperation", "ARTICLE", "list", 92);
-      category("cooperation-international", "国际交流", "cooperation", "ARTICLE", "list", 93);
-      category("cooperation-standards", "标委会活动", "cooperation", "ARTICLE", "list", 94);
-      category("cooperation-alliance", "联盟活动", "cooperation", "ARTICLE", "list", 95);
-      category("cooperation-training", "人才培训", "cooperation", "ARTICLE", "list", 96);
-      category("cooperation-enterprise", "企业合作", "cooperation", "ARTICLE", "list", 97);
+      category(
+        "cooperation-conferences",
+        "学术会议",
+        "cooperation",
+        "ARTICLE",
+        "list",
+        91
+      );
+      category(
+        "cooperation-journals",
+        "学术期刊",
+        "cooperation",
+        "ARTICLE",
+        "list",
+        92
+      );
+      category(
+        "cooperation-international",
+        "国际交流",
+        "cooperation",
+        "ARTICLE",
+        "list",
+        93
+      );
+      category(
+        "cooperation-enterprise",
+        "企业合作",
+        "cooperation",
+        "ARTICLE",
+        "list",
+        97
+      );
       category("about", "关于我们", null, "PAGE", "page", 10);
     }
     if (s.one("SELECT id FROM site_settings WHERE id=1") == null) {
