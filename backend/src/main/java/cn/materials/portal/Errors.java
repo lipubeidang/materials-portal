@@ -37,7 +37,7 @@ public class Errors {
   @ExceptionHandler(MaxUploadSizeExceededException.class)
   ResponseEntity<?> tooLarge() {
     return ResponseEntity.status(413).body(
-      Map.of("message", "文件不能超过 10 MB")
+      Map.of("message", "附件不能超过 1 GB")
     );
   }
 }

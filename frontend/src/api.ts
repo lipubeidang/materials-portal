@@ -78,9 +78,13 @@ export async function initialize() {
     state.ready = true;
   }
 }
-export async function upload(file: File) {
+export async function upload(
+  file: File,
+  purpose: "image" | "attachment" = "image",
+) {
   const form = new FormData();
   form.append("file", file);
+  form.append("purpose", purpose);
   return api("/api/operator/media", { method: "POST", body: form });
 }
 export function date(value: unknown) {

@@ -253,7 +253,31 @@ function chooseUpload() {
   uploadPosition = editor.value.state.selection.to;
   fileInput.value?.click();
 }
-defineExpose({ chooseImagePosition });
+function insertAttachmentLink(src: string, label: string) {
+  const instance = editor.value;
+  if (!instance || locked.value) return false;
+  const chain = instance.chain().focus();
+  if (!instance.state.selection.empty) {
+    return chain.setLink({ href: src, target: "_blank" }).run();
+  }
+  return chain
+    .insertContent({
+      type: "text",
+      text: label,
+      marks: [
+        {
+          type: "link",
+          attrs: {
+            href: src,
+            target: "_blank",
+            rel: "noopener noreferrer",
+          },
+        },
+      ],
+    })
+    .run();
+}
+defineExpose({ chooseImagePosition, insertAttachmentLink });
 async function image(e: Event) {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];

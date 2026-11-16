@@ -16,6 +16,17 @@ const bodyImages = computed(() => {
     ),
   );
 });
+const bodyAttachments = computed(() => {
+  const document = new DOMParser().parseFromString(
+    props.item.body || "",
+    "text/html",
+  );
+  return new Set(
+    Array.from(document.querySelectorAll("a[href]")).map((link) =>
+      link.getAttribute("href"),
+    ),
+  );
+});
 const cover = computed(() =>
   props.item.cover && !bodyImages.value.has(props.item.cover)
     ? props.item.cover
@@ -31,7 +42,9 @@ const imageAttachments = computed(() =>
 );
 const documents = computed(() =>
   (props.item.attachmentInfo || []).filter(
-    (file: Row) => !file.mime?.startsWith("image/"),
+    (file: Row) =>
+      !file.mime?.startsWith("image/") &&
+      !bodyAttachments.value.has("/api/media/" + file.id),
   ),
 );
 watch(

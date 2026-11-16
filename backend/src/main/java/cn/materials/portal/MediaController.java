@@ -17,6 +17,9 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 public class MediaController {
 
+  static final long IMAGE_LIMIT = 10L * 1024 * 1024;
+  static final long ATTACHMENT_LIMIT = 1024L * 1024 * 1024;
+
   final Store s;
   final Auth a;
   final ContentService c;
@@ -37,114 +40,172 @@ public class MediaController {
   @PostMapping("/api/operator/media")
   Object upload(
     @RequestParam("file") MultipartFile file,
+    @RequestParam(value = "purpose", defaultValue = "image") String purpose,
     HttpServletRequest request
   ) throws IOException {
     require(
-      !file.isEmpty() && file.getSize() <= 10 * 1024 * 1024,
+      Set.of("image", "attachment").contains(purpose),
       400,
-      "文件不能为空且不得超过 10 MB"
+      "上传用途无效"
     );
-    byte[] bytes = file.getBytes();
-    String name = Objects.toString(
-      file.getOriginalFilename(),
-      "file"
-    ).replaceAll("[\\\\/\\r\\n]", "_");
-    require(name.length() <= 240, 400, "文件名过长");
+    long limit = purpose.equals("attachment") ? ATTACHMENT_LIMIT : IMAGE_LIMIT;
+    require(
+      !file.isEmpty() && file.getSize() <= limit,
+      400,
+      purpose.equals("attachment")
+        ? "附件不能为空且不得超过 1 GB"
+        : "图片不能为空且不得超过 10 MB"
+    );
+    String name = validName(file.getOriginalFilename());
     String lower = name.toLowerCase(Locale.ROOT),
       mime;
-    byte[] stored = bytes;
-    if (
-      lower.endsWith(".png") ||
-      lower.endsWith(".jpg") ||
-      lower.endsWith(".jpeg")
-    ) {
-      try (
-        var in = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))
-      ) {
-        var readers = ImageIO.getImageReaders(in);
-        require(readers.hasNext(), 400, "图片格式无效");
-        var reader = readers.next();
-        try {
-          reader.setInput(in);
-          require(
-            (long) reader.getWidth(0) * reader.getHeight(0) <= 24_000_000,
-            400,
-            "图片像素过大"
-          );
-          var image = reader.read(0);
-          var out = new ByteArrayOutputStream();
-          boolean png = lower.endsWith(".png");
-          if (!png && image.getColorModel().hasAlpha()) {
-            var opaque = new java.awt.image.BufferedImage(
-              image.getWidth(),
-              image.getHeight(),
-              java.awt.image.BufferedImage.TYPE_INT_RGB
-            );
-            var graphics = opaque.createGraphics();
-            graphics.setColor(java.awt.Color.WHITE);
-            graphics.fillRect(0, 0, opaque.getWidth(), opaque.getHeight());
-            graphics.drawImage(image, 0, 0, null);
-            graphics.dispose();
-            image = opaque;
-          }
-          require(
-            ImageIO.write(image, png ? "png" : "jpg", out),
-            400,
-            "图片编码失败"
-          );
-          stored = out.toByteArray();
-          mime = png ? "image/png" : "image/jpeg";
-        } finally {
-          reader.dispose();
-        }
-      }
-    } else if (lower.endsWith(".pdf")) {
-      require(
-        bytes.length >= 5 &&
-          new String(bytes, 0, 5, StandardCharsets.US_ASCII).equals("%PDF-"),
-        400,
-        "PDF 文件格式无效"
-      );
-      mime = "application/pdf";
-    } else if (lower.endsWith(".txt")) {
-      require(bytes.length <= 2 * 1024 * 1024, 400, "文本文件不能超过 2 MB");
-      try {
-        StandardCharsets.UTF_8.newDecoder().decode(
-          java.nio.ByteBuffer.wrap(bytes)
-        );
-      } catch (Exception e) {
-        throw fail(400, "文本附件请使用 UTF-8 编码");
-      }
-      mime = "text/plain";
-    } else throw fail(400, "目前支持 PNG、JPG、PDF 和 UTF-8 TXT 文件");
     String id = id();
     Files.createDirectories(directory);
     Path target = directory.resolve(id);
-    Files.write(target, stored, StandardOpenOption.CREATE_NEW);
+    Path temporary = Files.createTempFile(directory, "upload-", ".tmp");
     try {
+      try (
+        var input = file.getInputStream();
+        var output = Files.newOutputStream(
+          temporary,
+          StandardOpenOption.TRUNCATE_EXISTING
+        )
+      ) {
+        input.transferTo(output);
+      }
+      long receivedSize = Files.size(temporary);
+      require(
+        receivedSize > 0 && receivedSize <= limit,
+        400,
+        "文件为空或大小超过限制"
+      );
+      if (
+        lower.endsWith(".png") ||
+        lower.endsWith(".jpg") ||
+        lower.endsWith(".jpeg")
+      ) {
+        var imageInput = ImageIO.createImageInputStream(temporary.toFile());
+        require(imageInput != null, 400, "图片格式无效");
+        try (imageInput) {
+          var readers = ImageIO.getImageReaders(imageInput);
+          require(readers.hasNext(), 400, "图片格式无效");
+          var reader = readers.next();
+          try {
+            reader.setInput(imageInput);
+            require(
+              (long) reader.getWidth(0) * reader.getHeight(0) <= 24_000_000,
+              400,
+              "图片像素过大"
+            );
+            var image = reader.read(0);
+            boolean png = lower.endsWith(".png");
+            if (!png && image.getColorModel().hasAlpha()) {
+              var opaque = new java.awt.image.BufferedImage(
+                image.getWidth(),
+                image.getHeight(),
+                java.awt.image.BufferedImage.TYPE_INT_RGB
+              );
+              var graphics = opaque.createGraphics();
+              graphics.setColor(java.awt.Color.WHITE);
+              graphics.fillRect(0, 0, opaque.getWidth(), opaque.getHeight());
+              graphics.drawImage(image, 0, 0, null);
+              graphics.dispose();
+              image = opaque;
+            }
+            require(
+              ImageIO.write(image, png ? "png" : "jpg", target.toFile()),
+              400,
+              "图片编码失败"
+            );
+            mime = png ? "image/png" : "image/jpeg";
+          } finally {
+            reader.dispose();
+          }
+        }
+      } else if (lower.endsWith(".pdf")) {
+        byte[] header;
+        try (var input = Files.newInputStream(temporary)) {
+          header = input.readNBytes(5);
+        }
+        require(
+          header.length == 5 &&
+            new String(header, StandardCharsets.US_ASCII).equals("%PDF-"),
+          400,
+          "PDF 文件格式无效"
+        );
+        mime = "application/pdf";
+        Files.move(temporary, target);
+      } else if (lower.endsWith(".txt")) {
+        var decoder = StandardCharsets.UTF_8.newDecoder()
+          .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+          .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT);
+        try (
+          var input = Files.newInputStream(temporary);
+          var reader = new InputStreamReader(input, decoder)
+        ) {
+          char[] buffer = new char[8192];
+          while (reader.read(buffer) != -1) {}
+        } catch (java.nio.charset.CharacterCodingException e) {
+          throw fail(400, "文本附件请使用 UTF-8 编码");
+        }
+        mime = "text/plain";
+        Files.move(temporary, target);
+      } else throw fail(400, "目前支持 PNG、JPG、PDF 和 UTF-8 TXT 文件");
+      long storedSize = Files.size(target);
       s.update(
         "INSERT INTO media_files VALUES(?,?,?,?,?,?)",
         id,
         name,
         mime,
-        stored.length,
+        storedSize,
         a.operator(request).get("user_id"),
         now()
       );
-    } catch (RuntimeException e) {
+      return Map.of(
+        "id",
+        id,
+        "url",
+        "/api/media/" + id,
+        "name",
+        name,
+        "mime",
+        mime,
+        "size",
+        storedSize
+      );
+    } catch (RuntimeException | IOException e) {
       Files.deleteIfExists(target);
       throw e;
+    } finally {
+      Files.deleteIfExists(temporary);
     }
-    return Map.of(
-      "id",
-      id,
-      "url",
-      "/api/media/" + id,
-      "name",
-      name,
-      "mime",
-      mime
+  }
+
+  String validName(Object value) {
+    String name = Objects.toString(value, "")
+      .trim()
+      .replaceAll("[\\\\/\\r\\n\\t]", "_");
+    require(!name.isBlank(), 400, "附件名称不能为空");
+    require(name.length() <= 240, 400, "附件名称不能超过 240 个字符");
+    return name;
+  }
+
+  @PatchMapping("/api/operator/media/{id}")
+  Object rename(
+    @PathVariable String id,
+    @RequestBody Map<String, Object> body,
+    HttpServletRequest request
+  ) {
+    require(id.matches("[a-f0-9-]{36}"), 404, "附件不存在");
+    a.operator(request);
+    String name = validName(body.get("name"));
+    require(
+      s.update("UPDATE media_files SET original_name=? WHERE id=?", name, id) ==
+        1,
+      404,
+      "附件不存在"
     );
+    return Map.of("id", id, "name", name);
   }
 
   boolean publiclyReferenced(String id) {

@@ -114,6 +114,69 @@ class PortalIntegrationTest {
   }
 
   @Test
+  void attachmentUploadsCanExceedImageLimitAndBeRenamed() throws Exception {
+    var operator = login("operator", "Test-Operator-2026!");
+    byte[] pdf = new byte[11 * 1024 * 1024];
+    System.arraycopy(
+      "%PDF-".getBytes(java.nio.charset.StandardCharsets.US_ASCII),
+      0,
+      pdf,
+      0,
+      5
+    );
+    var file = new MockMultipartFile(
+      "file",
+      "large-report.pdf",
+      "application/pdf",
+      pdf
+    );
+
+    mvc
+      .perform(
+        multipart("/api/operator/media")
+          .file(file)
+          .cookie(operator.cookie())
+          .header("Origin", "http://localhost:5173")
+          .header("X-CSRF-Token", operator.csrf())
+      )
+      .andExpect(status().isBadRequest());
+
+    var uploaded = mvc
+      .perform(
+        multipart("/api/operator/media")
+          .file(file)
+          .param("purpose", "attachment")
+          .cookie(operator.cookie())
+          .header("Origin", "http://localhost:5173")
+          .header("X-CSRF-Token", operator.csrf())
+      )
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.size").value(pdf.length))
+      .andReturn();
+    var media = s.decode(uploaded.getResponse().getContentAsString());
+    String id = str(media, "id");
+
+    mvc
+      .perform(
+        patch("/api/operator/media/" + id)
+          .cookie(operator.cookie())
+          .header("Origin", "http://localhost:5173")
+          .header("X-CSRF-Token", operator.csrf())
+          .contentType("application/json")
+          .content(s.encode(Map.of("name", "报告/最终版.pdf")))
+      )
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.name").value("报告_最终版.pdf"));
+    assertEquals(
+      "报告_最终版.pdf",
+      str(
+        s.one("SELECT original_name FROM media_files WHERE id=?", id),
+        "original_name"
+      )
+    );
+  }
+
+  @Test
   void homepagePartnerImagesAndDepartmentsFollowSavedSiteConfiguration()
     throws Exception {
     var operator = login("operator", "Test-Operator-2026!");
@@ -579,7 +642,16 @@ class PortalIntegrationTest {
         post("/api/public/feedback")
           .header("Origin", "http://localhost:5173")
           .contentType("application/json")
-          .content(s.encode(Map.of("subject", "网站功能建议", "description", "希望增加数据导出说明")))
+          .content(
+            s.encode(
+              Map.of(
+                "subject",
+                "网站功能建议",
+                "description",
+                "希望增加数据导出说明"
+              )
+            )
+          )
       )
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.id").isNotEmpty());

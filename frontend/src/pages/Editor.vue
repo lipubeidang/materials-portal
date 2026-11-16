@@ -280,23 +280,29 @@ async function uploadCrop() {
   }
 }
 async function attach(e: Event) {
-  const f = (e.target as HTMLInputElement).files?.[0];
+  const input = e.target as HTMLInputElement;
+  const f = input.files?.[0];
   if (!f) return;
+  if (f.size > 1024 * 1024 * 1024) {
+    notify("附件不能超过 1 GB", true);
+    input.value = "";
+    return;
+  }
   mediaBusy.value = true;
   try {
-    const media = await upload(f);
+    const media = await upload(f, "attachment");
     form.attachments.push(media.id);
     form.attachmentInfo.push({
       id: media.id,
       original_name: media.name,
       mime: media.mime,
-      size_bytes: f.size,
+      size_bytes: media.size,
     });
   } catch (e) {
     notify((e as Error).message, true);
   } finally {
     mediaBusy.value = false;
-    (e.target as HTMLInputElement).value = "";
+    input.value = "";
   }
 }
 async function chooseHomeImage(e: Event) {
@@ -326,6 +332,16 @@ async function chooseHomeImage(e: Event) {
   }
 }
 function removeAttachment(id: string) {
+  const body = new DOMParser().parseFromString(form.body || "", "text/html");
+  const url = "/api/media/" + id;
+  body.querySelectorAll("img[src], a[href]").forEach((element) => {
+    const attribute = element instanceof HTMLImageElement ? "src" : "href";
+    if (element.getAttribute(attribute) !== url) return;
+    if (element instanceof HTMLAnchorElement)
+      element.replaceWith(document.createTextNode(element.textContent || ""));
+    else element.remove();
+  });
+  form.body = body.body.innerHTML;
   form.attachments = form.attachments.filter((x: string) => x !== id);
   form.attachmentInfo = form.attachmentInfo.filter((x: Row) => x.id !== id);
 }
@@ -335,18 +351,77 @@ function isImageAttachment(file: Row) {
     /\.(png|jpe?g)$/i.test(file.original_name)
   );
 }
-function attachmentInBody(file: Row) {
+function attachmentImageInBody(file: Row) {
   const body = new DOMParser().parseFromString(form.body || "", "text/html");
   return Array.from(body.querySelectorAll("img")).some(
     (image) => image.getAttribute("src") === "/api/media/" + file.id,
   );
 }
-function insertAttachment(file: Row) {
+function attachmentLinkInBody(file: Row) {
+  const body = new DOMParser().parseFromString(form.body || "", "text/html");
+  return Array.from(body.querySelectorAll("a[href]")).some(
+    (link) => link.getAttribute("href") === "/api/media/" + file.id,
+  );
+}
+function insertAttachmentImage(file: Row) {
   if (uploadingMedia.value || busy.value) return;
   bodyEditor.value?.chooseImagePosition(
     "/api/media/" + file.id,
     file.original_name,
   );
+}
+function insertAttachmentLink(file: Row) {
+  if (uploadingMedia.value || busy.value) return;
+  const inserted = bodyEditor.value?.insertAttachmentLink(
+    "/api/media/" + file.id,
+    file.original_name,
+  );
+  if (inserted)
+    notify("附件链接已插入正文；如已选择文字，该文字将作为链接标题");
+}
+async function renameAttachment(file: Row) {
+  if (uploadingMedia.value || busy.value) return;
+  const nextName = window.prompt("请输入新的附件名称", file.original_name);
+  if (nextName === null || nextName.trim() === file.original_name) return;
+  const oldName = file.original_name;
+  mediaBusy.value = true;
+  try {
+    const renamed = await send(
+      "/api/operator/media/" + file.id,
+      { name: nextName.trim() },
+      "PATCH",
+    );
+    file.original_name = renamed.name;
+    const body = new DOMParser().parseFromString(form.body || "", "text/html");
+    const url = "/api/media/" + file.id;
+    body.querySelectorAll("a[href], img[src]").forEach((element) => {
+      if (
+        element instanceof HTMLAnchorElement &&
+        element.getAttribute("href") === url &&
+        element.textContent === oldName
+      )
+        element.textContent = renamed.name;
+      if (
+        element instanceof HTMLImageElement &&
+        element.getAttribute("src") === url &&
+        element.alt === oldName
+      )
+        element.alt = renamed.name;
+    });
+    form.body = body.body.innerHTML;
+    notify("附件名称已更新");
+  } catch (e) {
+    notify((e as Error).message, true);
+  } finally {
+    mediaBusy.value = false;
+  }
+}
+function fileSize(bytes: number) {
+  if (!bytes) return "";
+  if (bytes >= 1024 * 1024 * 1024)
+    return (bytes / 1024 / 1024 / 1024).toFixed(2) + " GB";
+  if (bytes >= 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + " MB";
+  return Math.max(1, Math.ceil(bytes / 1024)) + " KB";
 }
 </script>
 <template>
@@ -513,8 +588,7 @@ function insertAttachment(file: Row) {
                 <div>
                   <h3>附件 <span class="optional-label">选填</span></h3>
                   <p>
-                    图片可选择插入正文的位置，未插入的图片在文末展示；PDF、TXT
-                    提供下载。
+                    先在正文中选择任意文字，再点击“插入文字链接”，即可把附件绑定到该文字；没有选中文字时会在光标处插入附件名称。
                   </p>
                 </div>
                 <label
@@ -532,7 +606,7 @@ function insertAttachment(file: Row) {
                 </label>
               </div>
               <div v-if="!form.attachmentInfo.length" class="attachment-empty">
-                支持 PDF、TXT、PNG、JPG，单个文件最大 10 MB。
+                支持 PDF、TXT、PNG、JPG，单个附件最大 1 GB。
               </div>
               <div
                 v-for="f in form.attachmentInfo"
@@ -561,12 +635,14 @@ function insertAttachment(file: Row) {
                   <small
                     >{{
                       isImageAttachment(f)
-                        ? attachmentInBody(f)
+                        ? attachmentImageInBody(f)
                           ? "已插入正文"
                           : "将在文章末尾展示"
-                        : "附件下载"
+                        : attachmentLinkInBody(f)
+                          ? "已插入正文链接"
+                          : "附件下载"
                     }}<template v-if="f.size_bytes">
-                      · {{ Math.ceil(f.size_bytes / 1024) }} KB</template
+                      · {{ fileSize(f.size_bytes) }}</template
                     ></small
                   >
                 </div>
@@ -575,10 +651,27 @@ function insertAttachment(file: Row) {
                     v-if="isImageAttachment(f)"
                     type="button"
                     class="text-button"
-                    @click="insertAttachment(f)"
+                    @click="insertAttachmentImage(f)"
                     :disabled="busy || uploadingMedia"
                   >
-                    {{ attachmentInBody(f) ? "调整图片位置" : "选择插入位置" }}
+                    {{ attachmentImageInBody(f) ? "调整图片位置" : "插入图片" }}
+                  </button>
+                  <button
+                    type="button"
+                    class="text-button"
+                    @mousedown.prevent
+                    @click="insertAttachmentLink(f)"
+                    :disabled="busy || uploadingMedia"
+                  >
+                    插入文字链接
+                  </button>
+                  <button
+                    type="button"
+                    class="text-button"
+                    @click="renameAttachment(f)"
+                    :disabled="busy || uploadingMedia"
+                  >
+                    重命名
                   </button>
                   <button
                     type="button"
