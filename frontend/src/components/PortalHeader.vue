@@ -5,6 +5,7 @@ import { state, logout, categoryPath } from "../api";
 import materialsDataCenterLogo from "../assets/新材料大数据中心Logo.png";
 import portalLogo from "../assets/portal-logo.png";
 const props = defineProps<{ home?: boolean }>();
+const dataPlatformUrl = "http://171.221.175.91:50003/database-code/home";
 const omittedHomeEntries = new Set([
   "数据检索",
   "在线开发",
@@ -144,6 +145,7 @@ function hasDropdown(id: string) {
       </button>
       <div id="portal-navigation" class="nav-items" :class="{ expanded }">
         <RouterLink to="/" @click="expanded = false">首页</RouterLink>
+        <a :href="dataPlatformUrl" @click="expanded = false">数据平台</a>
         <div class="nav-item" v-for="c in roots" :key="c.id">
           <RouterLink
             :to="categoryPath(c.id)"
