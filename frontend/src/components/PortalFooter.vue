@@ -33,15 +33,24 @@ const partners = computed<FooterPartner[]>(() => {
   <footer class="portal-footer">
     <div class="container">
       <div class="portal-footer-inner">
-        <RouterLink to="/" class="portal-footer-brand">
-          <img
-            :src="footerLogo"
-            width="342"
-            height="97"
-            alt="新材料大数据中心 National Materials Big Data Center"
-          />
-          <strong>新一代生物医用材料数据资源节点</strong>
-        </RouterLink>
+        <div class="portal-footer-brand">
+          <a
+            href="https://www.matbd.cn/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="访问新材料大数据中心网站（新窗口）"
+          >
+            <img
+              :src="footerLogo"
+              width="342"
+              height="97"
+              alt="新材料大数据中心 National Materials Big Data Center"
+            />
+          </a>
+          <RouterLink to="/">
+            <strong>新一代生物医用材料数据资源节点</strong>
+          </RouterLink>
+        </div>
         <nav class="portal-footer-partners" aria-label="建设单位">
           <strong class="portal-footer-partners-title">建设单位</strong>
           <ul>
