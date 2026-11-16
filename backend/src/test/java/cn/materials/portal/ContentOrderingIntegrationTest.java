@@ -190,4 +190,33 @@ class ContentOrderingIntegrationTest {
       assertThrows(ResponseStatusException.class, () -> c.clean(payload));
     }
   }
+
+  @Test
+  void richTextFormattingIsPreservedButUntrustedStylesAreRemoved() {
+    var payload = new LinkedHashMap<String, Object>();
+    payload.put("title", "富文本内容");
+    payload.put("displayDate", "2026-11-16");
+    payload.put(
+      "body",
+      "<h2 data-text-align='center' style='position:fixed'>标题</h2>" +
+        "<p data-text-align='invalid'><span data-text-color='purple' data-highlight='orange' " +
+        "data-font-size='xl' data-font-family='kaiti'>重点</span>" +
+        "<span data-text-color='expression(alert(1))' data-font-size='99px' " +
+        "data-font-family='unknown'>风险</span></p><hr>"
+    );
+
+    String body = str(c.clean(payload), "body");
+
+    assertTrue(body.contains("<h2 data-text-align=\"center\">标题</h2>"));
+    assertTrue(body.contains("data-text-color=\"purple\""));
+    assertTrue(body.contains("data-highlight=\"orange\""));
+    assertTrue(body.contains("data-font-size=\"xl\""));
+    assertTrue(body.contains("data-font-family=\"kaiti\""));
+    assertTrue(body.contains("<hr>"));
+    assertFalse(body.contains("style="));
+    assertFalse(body.contains("data-text-align=\"invalid\""));
+    assertFalse(body.contains("expression"));
+    assertFalse(body.contains("99px"));
+    assertFalse(body.contains("unknown"));
+  }
 }

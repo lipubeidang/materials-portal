@@ -248,6 +248,110 @@ function fileSize(bytes: number) {
   font-size: 20px;
   line-height: 1.6;
 }
+.reading-body :deep(h4) {
+  margin: 24px 0 10px;
+  font-size: 18px;
+  line-height: 1.65;
+  color: #294a62;
+}
+.reading-body :deep([data-text-align="center"]) {
+  text-align: center;
+}
+.reading-body :deep([data-text-align="right"]) {
+  text-align: right;
+}
+.reading-body :deep([data-text-align="justify"]) {
+  text-align: justify;
+}
+.reading-body :deep([data-text-color="muted"]) {
+  color: #6f7f8c;
+}
+.reading-body :deep([data-text-color="black"]) {
+  color: #172b3a;
+}
+.reading-body :deep([data-text-color="blue"]) {
+  color: #176fa6;
+}
+.reading-body :deep([data-text-color="green"]) {
+  color: #25795a;
+}
+.reading-body :deep([data-text-color="red"]) {
+  color: #b54242;
+}
+.reading-body :deep([data-text-color="orange"]) {
+  color: #c65d21;
+}
+.reading-body :deep([data-text-color="amber"]) {
+  color: #a96d00;
+}
+.reading-body :deep([data-text-color="teal"]) {
+  color: #167a7a;
+}
+.reading-body :deep([data-text-color="indigo"]) {
+  color: #4e5bb5;
+}
+.reading-body :deep([data-text-color="purple"]) {
+  color: #8152a5;
+}
+.reading-body :deep([data-text-color="pink"]) {
+  color: #b84578;
+}
+.reading-body :deep([data-highlight="yellow"]) {
+  background: #fff2a8;
+}
+.reading-body :deep([data-highlight="blue"]) {
+  background: #dceefa;
+}
+.reading-body :deep([data-highlight="green"]) {
+  background: #dff3e8;
+}
+.reading-body :deep([data-highlight="orange"]) {
+  background: #ffe5c7;
+}
+.reading-body :deep([data-highlight="purple"]) {
+  background: #eee1f7;
+}
+.reading-body :deep([data-highlight="gray"]) {
+  background: #e8edf1;
+}
+.reading-body :deep([data-font-size="xs"]) {
+  font-size: 13px;
+}
+.reading-body :deep([data-font-size="sm"]) {
+  font-size: 15px;
+}
+.reading-body :deep([data-font-size="base"]) {
+  font-size: 17px;
+}
+.reading-body :deep([data-font-size="lg"]) {
+  font-size: 20px;
+}
+.reading-body :deep([data-font-size="xl"]) {
+  font-size: 24px;
+}
+.reading-body :deep([data-font-size="2xl"]) {
+  font-size: 30px;
+}
+.reading-body :deep([data-font-family="yahei"]) {
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+.reading-body :deep([data-font-family="songti"]) {
+  font-family: SimSun, "Songti SC", serif;
+}
+.reading-body :deep([data-font-family="heiti"]) {
+  font-family: SimHei, "Heiti SC", sans-serif;
+}
+.reading-body :deep([data-font-family="kaiti"]) {
+  font-family: KaiTi, STKaiti, serif;
+}
+.reading-body :deep([data-font-family="fangsong"]) {
+  font-family: FangSong, STFangsong, serif;
+}
+.reading-body :deep(hr) {
+  margin: 32px 0;
+  border: 0;
+  border-top: 1px solid #d9e3ea;
+}
 .reading-body :deep(img) {
   display: block;
   margin: 26px auto;

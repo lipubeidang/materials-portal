@@ -81,9 +81,18 @@ public class ContentService {
       "链接必须是本站路径或 http/https 地址"
     );
     var safe = Safelist.relaxed()
-      .addAttributes("*", "style")
-      .removeAttributes("*", "style")
       .addTags("hr")
+      .addAttributes("p", "data-text-align")
+      .addAttributes("h2", "data-text-align")
+      .addAttributes("h3", "data-text-align")
+      .addAttributes("h4", "data-text-align")
+      .addAttributes(
+        "span",
+        "data-text-color",
+        "data-highlight",
+        "data-font-size",
+        "data-font-family"
+      )
       .addAttributes("a", "target", "rel")
       .preserveRelativeLinks(true);
     // A parsing base lets Jsoup validate relative URLs without stripping local image sources.
@@ -98,6 +107,61 @@ public class ContentService {
     doc.select("a").forEach(link -> {
       if (!safeUrl(link.attr("href"))) link.removeAttr("href");
       link.attr("rel", "noopener noreferrer");
+    });
+    var validAlignments = Set.of("left", "center", "right", "justify");
+    doc.select("[data-text-align]").forEach(element -> {
+      if (
+        !validAlignments.contains(element.attr("data-text-align"))
+      ) element.removeAttr("data-text-align");
+    });
+    var validTextColors = Set.of(
+      "black",
+      "muted",
+      "red",
+      "orange",
+      "amber",
+      "green",
+      "teal",
+      "blue",
+      "indigo",
+      "purple",
+      "pink"
+    );
+    doc.select("span[data-text-color]").forEach(element -> {
+      if (
+        !validTextColors.contains(element.attr("data-text-color"))
+      ) element.removeAttr("data-text-color");
+    });
+    var validHighlights = Set.of(
+      "yellow",
+      "orange",
+      "green",
+      "blue",
+      "purple",
+      "gray"
+    );
+    doc.select("span[data-highlight]").forEach(element -> {
+      if (
+        !validHighlights.contains(element.attr("data-highlight"))
+      ) element.removeAttr("data-highlight");
+    });
+    var validFontSizes = Set.of("xs", "sm", "base", "lg", "xl", "2xl");
+    doc.select("span[data-font-size]").forEach(element -> {
+      if (
+        !validFontSizes.contains(element.attr("data-font-size"))
+      ) element.removeAttr("data-font-size");
+    });
+    var validFontFamilies = Set.of(
+      "yahei",
+      "songti",
+      "heiti",
+      "kaiti",
+      "fangsong"
+    );
+    doc.select("span[data-font-family]").forEach(element -> {
+      if (
+        !validFontFamilies.contains(element.attr("data-font-family"))
+      ) element.removeAttr("data-font-family");
     });
     out.put("body", doc.body().html());
     out.put("pinned", bool(b, "pinned"));
