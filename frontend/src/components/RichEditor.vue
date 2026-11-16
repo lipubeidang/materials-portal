@@ -167,6 +167,23 @@ const editor = useEditor({
       "aria-label": "内容正文",
       "aria-multiline": "true",
     },
+    handlePaste: (view, event) => {
+      if (locked.value) return false;
+      const clipboard = event.clipboardData;
+      const item = Array.from(clipboard?.items || []).find(
+        (entry) => entry.kind === "file" && entry.type.startsWith("image/"),
+      );
+      const file =
+        item?.getAsFile() ||
+        Array.from(clipboard?.files || []).find((entry) =>
+          entry.type.startsWith("image/"),
+        );
+      if (!file) return false;
+      event.preventDefault();
+      const { from, to } = view.state.selection;
+      void pasteImage(file, { from, to });
+      return true;
+    },
   },
 });
 watch(
@@ -292,6 +309,45 @@ async function image(e: Event) {
     if (!disposed) notify((e as Error).message, true);
   } finally {
     input.value = "";
+    uploading.value = false;
+    if (!disposed) emit("busy", false);
+  }
+}
+async function pasteImage(file: File, range: { from: number; to: number }) {
+  if (!editor.value || locked.value || disposed) return;
+  if (!["image/png", "image/jpeg"].includes(file.type)) {
+    notify("粘贴图片仅支持 PNG 或 JPG 格式", true);
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    notify("粘贴图片不能超过 10 MB", true);
+    return;
+  }
+  uploading.value = true;
+  emit("busy", true);
+  try {
+    const media = await upload(file);
+    const instance = editor.value;
+    if (!instance || disposed) return;
+    const documentEnd = instance.state.doc.content.size;
+    const from = Math.min(range.from, documentEnd);
+    const to = Math.min(Math.max(range.to, from), documentEnd);
+    instance
+      .chain()
+      .focus()
+      .insertContentAt(
+        { from, to },
+        {
+          type: "image",
+          attrs: { src: media.url, alt: media.name || "粘贴图片" },
+        },
+      )
+      .scrollIntoView()
+      .run();
+    notify("图片已粘贴到正文");
+  } catch (e) {
+    if (!disposed) notify((e as Error).message, true);
+  } finally {
     uploading.value = false;
     if (!disposed) emit("busy", false);
   }
@@ -617,7 +673,7 @@ function clearFormatting() {
       {{
         uploading
           ? "正在上传图片，完成后即可保存或发布。"
-          : "先点击正文确定光标位置，再插入图片；点击已有图片可调整位置。支持 PNG / JPG，最大 10 MB。"
+          : "可在正文中直接粘贴截图或复制的图片；也可先确定光标位置，再通过工具栏插入。支持 PNG / JPG，最大 10 MB。"
       }}
     </div>
     <dialog

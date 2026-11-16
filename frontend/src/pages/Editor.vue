@@ -572,7 +572,7 @@ function fileSize(bytes: number) {
               <div class="section-intro">
                 <h3>正文内容</h3>
                 <p>
-                  点击“插入正文图片”，可选择光标处或指定段落之后。选中已有图片，可再次调整位置。
+                  支持直接粘贴截图或复制的图片；也可点击“插入正文图片”选择光标处或指定段落之后。
                 </p>
               </div>
               <RichEditor
