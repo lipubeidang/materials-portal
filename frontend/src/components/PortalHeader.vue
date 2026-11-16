@@ -164,6 +164,9 @@ function hasDropdown(id: string) {
             >
           </div>
         </div>
+        <RouterLink to="/feedback" @click="expanded = false"
+          >意见反馈</RouterLink
+        >
         <a
           v-for="item in extraNavigation"
           :key="item.title"

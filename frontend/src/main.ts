@@ -5,10 +5,12 @@ import Home from "./pages/Home.vue";
 import ContentPage from "./pages/ContentPage.vue";
 import Login from "./pages/Login.vue";
 import Account from "./pages/Account.vue";
+import Feedback from "./pages/Feedback.vue";
 import { initialize, state, notify, recordVisit } from "./api";
 import { recordCenterVisit } from "./center-visits";
 import "./style.css";
 import "./styles/portal.css";
+import "./styles/feedback.css";
 const router = createRouter({
   history: createWebHistory(),
   scrollBehavior: (to, from) => {
@@ -31,6 +33,7 @@ const router = createRouter({
     { path: "/login", component: Login },
     { path: "/register", component: Login },
     { path: "/account", component: Account, meta: { login: true } },
+    { path: "/feedback", component: Feedback },
     {
       path: "/operator",
       component: () => import("./pages/Admin.vue"),

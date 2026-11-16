@@ -41,7 +41,10 @@ public class WebConfig implements WebMvcConfigurer {
               !Set.of("GET", "HEAD", "OPTIONS").contains(r.getMethod()) &&
               !Set.of("/api/auth/login", "/api/auth/register").contains(path)
             ) {
-              if (path.equals("/api/public/visits")) a.checkOrigin(r);
+              if (
+                path.equals("/api/public/visits") ||
+                path.equals("/api/public/feedback")
+              ) a.checkOrigin(r);
               else a.csrf(r);
             }
             if (

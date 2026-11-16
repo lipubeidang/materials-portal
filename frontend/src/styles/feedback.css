@@ -1,0 +1,178 @@
+.feedback-page {
+  padding-block: 24px 64px;
+}
+.feedback-breadcrumbs {
+  margin-bottom: 18px;
+}
+.feedback-panel {
+  overflow: hidden;
+  border: 1px solid #dce4ec;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(23 66 113 / 6%);
+}
+.feedback-heading {
+  padding: 30px 50px 24px;
+  border-bottom: 1px solid #e5ebf1;
+}
+.feedback-heading span {
+  color: #2872c7;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+}
+.feedback-heading h1 {
+  margin: 6px 0 8px;
+  color: #173c6d;
+  font-size: 28px;
+}
+.feedback-heading p {
+  margin: 0;
+  color: #6e7f91;
+  font-size: 15px;
+}
+.feedback-notice {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 18px 50px;
+  color: #ad741b;
+  background: #fff5df;
+  font-size: 16px;
+  line-height: 1.8;
+}
+.feedback-notice span {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+  place-items: center;
+  margin-top: 3px;
+  border-radius: 50%;
+  color: #fff;
+  background: #ffaf28;
+  font-weight: 700;
+}
+.feedback-form {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 34px 50px 48px;
+}
+.feedback-form label {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 25px;
+}
+.feedback-form label > span {
+  padding-top: 13px;
+  color: #243e5e;
+  font-size: 17px;
+  text-align: right;
+}
+.feedback-form b {
+  color: #e95d5d;
+}
+.feedback-form input,
+.feedback-form textarea {
+  width: 100%;
+  border: 1px solid #d4dee9;
+  border-radius: 6px;
+  color: #243e5e;
+  font: inherit;
+}
+.feedback-form input {
+  height: 48px;
+  padding-inline: 15px;
+}
+.feedback-form textarea {
+  display: block;
+  min-height: 180px;
+  padding: 13px 15px 30px;
+  resize: vertical;
+  line-height: 1.7;
+}
+.feedback-form input:focus,
+.feedback-form textarea:focus {
+  border-color: #2872c7;
+  outline: 3px solid rgb(40 114 199 / 15%);
+}
+.feedback-textarea-wrap {
+  position: relative;
+}
+.feedback-textarea-wrap small {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  color: #8796a6;
+  font-size: 13px;
+}
+.feedback-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 38px;
+}
+.feedback-actions button {
+  min-width: 130px;
+  min-height: 46px;
+  border-radius: 5px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.feedback-reset {
+  border: 1px solid #d3dee9;
+  color: #65798d;
+  background: #fff;
+}
+.feedback-submit {
+  color: #fff;
+  background: #1b60bc;
+}
+.feedback-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+@media (max-width: 700px) {
+  .feedback-page {
+    padding-block: 16px 36px;
+  }
+  .feedback-heading,
+  .feedback-notice,
+  .feedback-form {
+    padding-inline: 20px;
+  }
+  .feedback-heading {
+    padding-block: 24px 20px;
+  }
+  .feedback-heading h1 {
+    font-size: 24px;
+  }
+  .feedback-notice {
+    padding-block: 15px;
+    font-size: 14px;
+  }
+  .feedback-form {
+    padding-block: 26px 32px;
+  }
+  .feedback-form label {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .feedback-form label > span {
+    padding: 0;
+    font-size: 15px;
+    text-align: left;
+  }
+  .feedback-form textarea {
+    min-height: 150px;
+  }
+  .feedback-actions {
+    margin-top: 28px;
+  }
+  .feedback-actions button {
+    min-width: 110px;
+  }
+}

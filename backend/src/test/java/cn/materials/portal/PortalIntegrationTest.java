@@ -573,6 +573,40 @@ class PortalIntegrationTest {
   }
 
   @Test
+  void anonymousFeedbackIsValidatedAndStored() throws Exception {
+    mvc
+      .perform(
+        post("/api/public/feedback")
+          .header("Origin", "http://localhost:5173")
+          .contentType("application/json")
+          .content(s.encode(Map.of("subject", "网站功能建议", "description", "希望增加数据导出说明")))
+      )
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.id").isNotEmpty());
+    var feedback = s.one(
+      "SELECT * FROM feedbacks WHERE subject=?",
+      "网站功能建议"
+    );
+    assertNotNull(feedback);
+    assertEquals("希望增加数据导出说明", feedback.get("description"));
+    mvc
+      .perform(
+        post("/api/public/feedback")
+          .header("Origin", "http://localhost:5173")
+          .contentType("application/json")
+          .content(s.encode(Map.of("subject", "", "description", "内容")))
+      )
+      .andExpect(status().isBadRequest());
+    mvc
+      .perform(
+        post("/api/public/feedback")
+          .contentType("application/json")
+          .content(s.encode(Map.of("subject", "主题", "description", "内容")))
+      )
+      .andExpect(status().isForbidden());
+  }
+
+  @Test
   void concurrentVisitsDoNotLoseUpdatesOrOverflowIntegers() throws Exception {
     long before = Integer.MAX_VALUE;
     s.update("UPDATE site_statistics SET total_visits=? WHERE id=1", before);
