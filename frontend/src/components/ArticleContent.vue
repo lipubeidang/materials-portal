@@ -60,6 +60,13 @@ function fileSize(bytes: number) {
     ? (bytes / 1024 / 1024).toFixed(1) + " MB"
     : Math.max(1, Math.ceil(bytes / 1024)) + " KB";
 }
+function fileBadge(file: Row) {
+  if (file.mime === "application/pdf") return "PDF";
+  if (file.mime === "application/zip") return "ZIP";
+  if (file.mime === "application/vnd.rar") return "RAR";
+  if (file.mime === "application/x-7z-compressed") return "7Z";
+  return "TXT";
+}
 </script>
 
 <template>
@@ -167,9 +174,7 @@ function fileSize(bytes: number) {
         class="download-row"
         :download="file.original_name"
       >
-        <span class="file-badge">{{
-          file.mime === "application/pdf" ? "PDF" : "TXT"
-        }}</span>
+        <span class="file-badge">{{ fileBadge(file) }}</span>
         <span class="download-name"
           >{{ file.original_name
           }}<small>{{ fileSize(file.size_bytes) }}</small></span

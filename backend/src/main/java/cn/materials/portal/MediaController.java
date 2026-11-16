@@ -150,7 +150,44 @@ public class MediaController {
         }
         mime = "text/plain";
         Files.move(temporary, target);
-      } else throw fail(400, "目前支持 PNG、JPG、PDF 和 UTF-8 TXT 文件");
+      } else if (
+        lower.endsWith(".zip") ||
+        lower.endsWith(".rar") ||
+        lower.endsWith(".7z")
+      ) {
+        byte[] header;
+        try (var input = Files.newInputStream(temporary)) {
+          header = input.readNBytes(8);
+        }
+        if (lower.endsWith(".zip")) {
+          require(
+            startsWith(header, 0x50, 0x4b, 0x03, 0x04) ||
+              startsWith(header, 0x50, 0x4b, 0x05, 0x06) ||
+              startsWith(header, 0x50, 0x4b, 0x07, 0x08),
+            400,
+            "ZIP 压缩包格式无效"
+          );
+          mime = "application/zip";
+        } else if (lower.endsWith(".rar")) {
+          require(
+            startsWith(header, 0x52, 0x61, 0x72, 0x21, 0x1a, 0x07),
+            400,
+            "RAR 压缩包格式无效"
+          );
+          mime = "application/vnd.rar";
+        } else {
+          require(
+            startsWith(header, 0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c),
+            400,
+            "7Z 压缩包格式无效"
+          );
+          mime = "application/x-7z-compressed";
+        }
+        Files.move(temporary, target);
+      } else throw fail(
+        400,
+        "目前支持 PNG、JPG、PDF、UTF-8 TXT、ZIP、RAR 和 7Z 文件"
+      );
       long storedSize = Files.size(target);
       s.update(
         "INSERT INTO media_files VALUES(?,?,?,?,?,?)",
@@ -179,6 +216,14 @@ public class MediaController {
     } finally {
       Files.deleteIfExists(temporary);
     }
+  }
+
+  boolean startsWith(byte[] actual, int... expected) {
+    if (actual.length < expected.length) return false;
+    for (int i = 0; i < expected.length; i++) if (
+      (actual[i] & 0xff) != expected[i]
+    ) return false;
+    return true;
   }
 
   String validName(Object value) {

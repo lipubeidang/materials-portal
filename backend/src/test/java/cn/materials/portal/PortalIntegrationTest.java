@@ -177,6 +177,77 @@ class PortalIntegrationTest {
   }
 
   @Test
+  void zipRarAndSevenZipAttachmentsValidateTheirFileSignatures()
+    throws Exception {
+    var operator = login("operator", "Test-Operator-2026!");
+    var archives = List.of(
+      Map.entry("materials.zip", new byte[] { 0x50, 0x4b, 0x03, 0x04 }),
+      Map.entry("materials.rar", new byte[] {
+        0x52,
+        0x61,
+        0x72,
+        0x21,
+        0x1a,
+        0x07,
+        0x00,
+      }),
+      Map.entry("materials.7z", new byte[] {
+        0x37,
+        0x7a,
+        (byte) 0xbc,
+        (byte) 0xaf,
+        0x27,
+        0x1c,
+      })
+    );
+    var expectedMimes = List.of(
+      "application/zip",
+      "application/vnd.rar",
+      "application/x-7z-compressed"
+    );
+
+    for (int i = 0; i < archives.size(); i++) {
+      var archive = archives.get(i);
+      mvc
+        .perform(
+          multipart("/api/operator/media")
+            .file(
+              new MockMultipartFile(
+                "file",
+                archive.getKey(),
+                "application/octet-stream",
+                archive.getValue()
+              )
+            )
+            .param("purpose", "attachment")
+            .cookie(operator.cookie())
+            .header("Origin", "http://localhost:5173")
+            .header("X-CSRF-Token", operator.csrf())
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.mime").value(expectedMimes.get(i)));
+    }
+
+    mvc
+      .perform(
+        multipart("/api/operator/media")
+          .file(
+            new MockMultipartFile(
+              "file",
+              "fake.zip",
+              "application/zip",
+              "not-a-zip".getBytes(java.nio.charset.StandardCharsets.UTF_8)
+            )
+          )
+          .param("purpose", "attachment")
+          .cookie(operator.cookie())
+          .header("Origin", "http://localhost:5173")
+          .header("X-CSRF-Token", operator.csrf())
+      )
+      .andExpect(status().isBadRequest());
+  }
+
+  @Test
   void homepagePartnerImagesAndDepartmentsFollowSavedSiteConfiguration()
     throws Exception {
     var operator = login("operator", "Test-Operator-2026!");

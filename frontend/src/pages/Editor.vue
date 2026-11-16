@@ -351,6 +351,15 @@ function isImageAttachment(file: Row) {
     /\.(png|jpe?g)$/i.test(file.original_name)
   );
 }
+function isArchiveAttachment(file: Row) {
+  return (
+    [
+      "application/zip",
+      "application/vnd.rar",
+      "application/x-7z-compressed",
+    ].includes(file.mime) || /\.(zip|rar|7z)$/i.test(file.original_name)
+  );
+}
 function attachmentImageInBody(file: Row) {
   const body = new DOMParser().parseFromString(form.body || "", "text/html");
   return Array.from(body.querySelectorAll("img")).some(
@@ -598,7 +607,7 @@ function fileSize(bytes: number) {
                   ＋ 添加附件
                   <input
                     type="file"
-                    accept=".pdf,.txt,.png,.jpg,.jpeg"
+                    accept=".pdf,.txt,.png,.jpg,.jpeg,.zip,.rar,.7z"
                     hidden
                     @change="attach"
                     :disabled="busy || uploadingMedia"
@@ -606,7 +615,7 @@ function fileSize(bytes: number) {
                 </label>
               </div>
               <div v-if="!form.attachmentInfo.length" class="attachment-empty">
-                支持 PDF、TXT、PNG、JPG，单个附件最大 1 GB。
+                支持 PDF、TXT、PNG、JPG、ZIP、RAR、7Z，单个附件最大 1 GB。
               </div>
               <div
                 v-for="f in form.attachmentInfo"
@@ -622,9 +631,9 @@ function fileSize(bytes: number) {
                 >
                   <img :src="'/api/media/' + f.id" :alt="f.original_name" />
                 </a>
-                <span v-else class="attachment-file-icon" aria-hidden="true"
-                  >文档</span
-                >
+                <span v-else class="attachment-file-icon" aria-hidden="true">
+                  {{ isArchiveAttachment(f) ? "压缩包" : "文档" }}
+                </span>
                 <div class="attachment-description">
                   <a
                     :href="'/api/media/' + f.id"
