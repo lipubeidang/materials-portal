@@ -45,8 +45,34 @@ public class ResourceService {
         "/database-search/search/fieldStat",
         "{\"statType\":\"1\"}"
       );
-      return readDirectories(data.path("treeStat"), 0);
+      return sortDirectories(readDirectories(data.path("treeStat"), 0));
     }, cacheMillis("cache-seconds", 60L));
+  }
+
+  private static final List<String> DIRECTORY_ORDER = List.of(
+    "生物医用金属材料", "生物医用无机非金属材料", "生物医用高分子材料",
+    "生物医用复合材料", "生物衍生材料", "生物功能性材料",
+    "骨科材料", "心血管材料", "眼科材料", "口腔科材料", "整形及普通外科材料",
+    "神经内外科材料", "耳鼻喉科材料", "注输、护理和防护材料", "血液净化分离材料",
+    "组织工程支架材料", "组织诱导性植入材料", "临床治疗、成像和检验材料",
+    "临床手术和治疗辅助器械材料"
+  );
+
+  private List<Directory> sortDirectories(List<Directory> nodes) {
+    var sorted = new ArrayList<>(nodes);
+    sorted.sort(Comparator.comparingInt(node -> directoryRank(node.name())));
+    return sorted.stream()
+      .map(node -> new Directory(node.id(), node.name(), sortDirectories(node.children())))
+      .toList();
+  }
+
+  private int directoryRank(String name) {
+    if (name.contains("科学")) return -2;
+    if (name.contains("应用") || name.contains("产业")) return -1;
+    int index = DIRECTORY_ORDER.indexOf(name);
+    if (index >= 0) return index;
+    if (name.startsWith("其他")) return 10_000;
+    return 5_000;
   }
 
   public List<Statistic> statistics() {
