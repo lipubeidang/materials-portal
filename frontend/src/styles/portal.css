@@ -45,11 +45,13 @@
 }
 .portal-shell .home-brand {
   flex: 1 1 auto;
+  min-width: 0;
   gap: clamp(12px, 1.1vw, 22px);
   white-space: nowrap;
 }
 .portal-shell .materials-data-center-logo {
   display: block;
+  min-width: 0;
   width: clamp(250px, 19vw, 400px);
   height: auto;
   flex: 0 1 auto;
@@ -62,10 +64,12 @@
   background: #c5c5c5;
 }
 .portal-shell .home-brand .portal-logo {
+  min-width: 0;
   width: clamp(250px, 18vw, 380px);
   flex: 0 1 auto;
 }
 .portal-shell .resource-node-name {
+  flex: none;
   color: #282828;
   font-size: clamp(23px, 1.65vw, 34px);
   font-weight: 700;

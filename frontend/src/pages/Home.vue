@@ -15,16 +15,40 @@ const data = ref<Row>({ items: [], latest: [] });
 const search = ref("");
 const newsTab = ref("all");
 let mounted = true;
-const banners = computed<Row[]>(() =>
-  state.site.banners?.length
-    ? state.site.banners
-    : [
-        {
-          title: state.site.name,
-          description: "汇聚材料数据，连接创新未来",
-        },
-      ],
-);
+const defaultBanners = computed<Row[]>(() => [
+  {
+    title: "汇聚材料数据 · 连接创新未来",
+    description: "数据资源、科研成果与行业资讯，在这里交汇",
+    url: "/columns/resources",
+    eyebrow: "让数据，转化为材料创新能力",
+    buttonText: "探索更多",
+  },
+  {
+    title: "让每一份研究，都成为创新的起点",
+    description: "探索新材料领域动态，发现数据与产业的更多可能",
+    url: "/columns/industry",
+    eyebrow: "让数据，转化为材料创新能力",
+    buttonText: "探索更多",
+  },
+]);
+const banners = computed<Row[]>(() => {
+  const configured = Array.isArray(state.site.banners)
+    ? state.site.banners.filter(
+        (banner: Row) => banner.title || banner.description || banner.image,
+      )
+    : [];
+  if (configured.length >= 2) return configured;
+
+  const missingDefaults = defaultBanners.value.filter(
+    (fallback) =>
+      !configured.some(
+        (banner: Row) =>
+          banner.title === fallback.title &&
+          banner.description === fallback.description,
+      ),
+  );
+  return [...configured, ...missingDefaults].slice(0, 2);
+});
 const newsCategories = computed(() =>
   state.categories.filter((c) => c.parent_id === "news"),
 );
@@ -108,12 +132,17 @@ function find() {
               <h1 :title="banners[index].title">{{ banners[index].title }}</h1>
               <p>{{ banners[index].description }}</p>
               <a
-                v-if="banners[index].url"
+                v-if="index === 1 && banners[index].url"
                 :href="banners[index].url"
                 class="hero-link"
-                >{{ banners[index].buttonText || "探索更多" }}
-                <span aria-hidden="true">→</span></a
               >
+                {{ banners[index].buttonText || "探索更多" }}
+                <span aria-hidden="true">→</span>
+              </a>
+              <span v-else-if="banners[index].url" class="hero-link">
+                {{ banners[index].buttonText || "探索更多" }}
+                <span aria-hidden="true">→</span>
+              </span>
             </div>
             <template v-if="!banners[index].image">
               <a

@@ -2,7 +2,7 @@
 import { computed, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { send, state, refreshUser, notify } from "../api";
-import materialsDataCenterLogo from "../assets/新材料大数据中心Logo.png";
+import materialsDataCenterLogo from "../assets/国家新材料大数据中心彩色.png";
 const route = useRoute(),
   router = useRouter();
 const isRegister = computed(() => route.path === "/register");

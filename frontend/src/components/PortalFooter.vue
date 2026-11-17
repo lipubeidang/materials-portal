@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { state } from "../api";
-import footerLogo from "../assets/footer-logo.png";
+import footerLogo from "../assets/白新材料大数据中心白.png";
 import publicSecurityIcon from "../assets/备案小图标.png";
 
 type FooterPartner = {

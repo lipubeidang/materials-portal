@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { state, logout, categoryPath } from "../api";
-import materialsDataCenterLogo from "../assets/新材料大数据中心Logo.png";
+import materialsDataCenterLogo from "../assets/国家新材料大数据中心彩色.png";
 import portalLogo from "../assets/portal-logo.png";
 const props = defineProps<{ home?: boolean }>();
 const dataPlatformUrl = "http://171.221.175.91:50003/database-code/home";
