@@ -19,8 +19,8 @@ app:
   production: ${APP_PRODUCTION:false}
   secure-cookie: ${SECURE_COOKIE:false}
   uploads: ${UPLOAD_DIR:./uploads}
-  bootstrap-user: ${BOOTSTRAP_USER:}
-  bootstrap-password: ${BOOTSTRAP_PASSWORD:}
+  bootstrap-user: ${BOOTSTRAP_USER:operator}
+  bootstrap-password: ${BOOTSTRAP_PASSWORD:DevOperator@123}
   demo: ${DEMO_DATA:false}
   resources:
     base-url: ${RESOURCE_BASE_URL:http://171.221.175.91:50003}
@@ -29,13 +29,14 @@ app:
     cache-seconds: ${RESOURCE_CACHE_SECONDS:60}
     statistics-cache-seconds: ${RESOURCE_STATISTICS_CACHE_SECONDS:0}
   center:
-    enabled: ${CENTER_ENABLED:false}
-    base-url: ${CENTER_BASE_URL:}
-    client-id: ${CENTER_CLIENT_ID:}
-    client-secret: ${CENTER_CLIENT_SECRET:}
-    callback: ${CENTER_CALLBACK:}
+    enabled: ${CENTER_ENABLED:true}
+    base-url: ${CENTER_BASE_URL:https://www.matbd.cn}
+    client-id: ${CENTER_CLIENT_ID:CID_1794552742274}
+    client-secret: ${CENTER_CLIENT_SECRET:47eeb20f73aa4019984d4f00991ece46}
+    callback: ${CENTER_CALLBACK:http://localhost:5173/auth/center/callback}
     authorization-prefix: ${CENTER_AUTH_PREFIX:}
-    user-id-path: ${CENTER_USER_ID_PATH:id}
+#    user-id-path: ${CENTER_USER_ID_PATH:id}
+    user-id-path: ${CENTER_USER_ID_PATH:userId}
     user-name-path: ${CENTER_USER_NAME_PATH:username}
     encryption-key: ${CENTER_STORAGE_KEY:}
     logout-key: ${CENTER_LOGOUT_KEY:}

@@ -72,8 +72,8 @@ const news = computed(() =>
     (x: Row) => newsTab.value === "all" || x.categoryId === newsTab.value,
   ),
 );
-const industryUpdates = computed(() =>
-  data.value.items.filter((x: Row) => x.categoryId === "industry").slice(0, 4),
+const notices = computed(() =>
+  data.value.items.filter((x: Row) => x.categoryId === "notices").slice(0, 4),
 );
 const products = computed(() =>
   data.value.items.filter((x: Row) => x.type === "PRODUCT").slice(0, 3),
@@ -313,17 +313,17 @@ function find() {
               </div>
             </div>
           </section>
-          <section aria-labelledby="home-industry-title">
+          <section aria-labelledby="home-notices-title">
             <div class="section-heading">
-              <h2 id="home-industry-title">
+              <h2 id="home-notices-title">
                 领域动态 <small>/ INDUSTRY UPDATES</small>
               </h2>
-              <RouterLink :to="categoryPath('industry')">+更多</RouterLink>
+              <RouterLink :to="categoryPath('notices')">+更多</RouterLink>
             </div>
             <div class="home-notices">
               <RouterLink
                 class="notice-row"
-                v-for="n in industryUpdates"
+                v-for="n in notices"
                 :key="n.id"
                 :to="'/content/' + n.id"
                 ><span class="date-card"
@@ -333,7 +333,7 @@ function find() {
                   n.title
                 }}</span></RouterLink
               >
-              <p v-if="!industryUpdates.length" class="empty">暂无领域动态</p>
+              <p v-if="!notices.length" class="empty">暂无领域动态</p>
             </div>
           </section>
         </div>
