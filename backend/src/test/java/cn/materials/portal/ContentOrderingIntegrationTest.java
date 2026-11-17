@@ -68,6 +68,35 @@ class ContentOrderingIntegrationTest {
     );
   }
 
+  Map<String, Object> publishInCategory(String title, String categoryId) {
+    var data = new LinkedHashMap<String, Object>();
+    data.put("categoryId", categoryId);
+    data.put("title", title);
+    data.put("body", "<p>首页最新内容测试</p>");
+    data.put("displayDate", "2026-11-16");
+    data.put("recommended", true);
+    var saved = c.save(null, data, actor());
+    return c.action(
+      str(saved, "id"),
+      "publish",
+      num(saved, "version", 0),
+      actor()
+    );
+  }
+
+  @Test
+  void homeLatestContainsOnlyNews() throws Exception {
+    publishInCategory("不应出现在最新中的产品", "products");
+    var news = publishInCategory("应出现在最新中的新闻", "headlines");
+
+    mvc
+      .perform(get("/api/public/home"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.latest.length()").value(1))
+      .andExpect(jsonPath("$.latest[0].id").value(news.get("id")))
+      .andExpect(jsonPath("$.latest[0].categoryId").value("headlines"));
+  }
+
   @Test
   void prioritiesApplyToListsAndHomeOnlyAfterPublishing() throws Exception {
     var low = publish(

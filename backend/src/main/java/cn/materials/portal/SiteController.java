@@ -162,6 +162,7 @@ public class SiteController {
   @GetMapping("/api/public/home")
   Object home() {
     var all = c.publicItems();
+    var newsCategories = c.descendants("news");
     return Map.of(
       "items",
       all
@@ -170,7 +171,11 @@ public class SiteController {
         .limit(60)
         .toList(),
       "latest",
-      all.stream().limit(5).toList()
+      all
+        .stream()
+        .filter(v -> newsCategories.contains(str(v, "categoryId")))
+        .limit(5)
+        .toList()
     );
   }
 
