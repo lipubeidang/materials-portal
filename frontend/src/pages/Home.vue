@@ -131,10 +131,6 @@ function find() {
               >
               <h1 :title="banners[index].title">{{ banners[index].title }}</h1>
               <p>{{ banners[index].description }}</p>
-              <span v-if="banners[index].url" class="hero-link">
-                {{ banners[index].buttonText || "探索更多" }}
-                <span aria-hidden="true">→</span>
-              </span>
             </div>
             <template v-if="!banners[index].image">
               <a
