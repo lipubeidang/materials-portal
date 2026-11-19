@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { categoryPath } from "../api";
-import resourceNetworkImage from "../assets/汇聚生物医用材料数据网络.webp";
+import resourceNetworkImage from "../assets/data-resource-network.png";
 </script>
 
 <template>
