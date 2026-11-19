@@ -12,15 +12,25 @@ type FooterPartner = {
 const defaultConstructionPartners: FooterPartner[] = [
   { title: "四川大学", url: "https://www.scu.edu.cn/" },
   { title: "西南交通大学", url: "https://www.swjtu.edu.cn/" },
-  { title: "北京科技大学", url: "https://www.ustb.edu.cn/" },
-  { title: "中国科学院", url: "https://www.cas.cn/" },
-  { title: "华西医院", url: "https://www.wchscu.cn/" },
-  { title: "解放军总院", url: "https://www.plagh.com.cn/" },
   {
-    title: "西安交通大学第一附属医院",
-    url: "https://www.dyyy.xjtu.edu.cn/",
+    title: "中国科学院上海硅酸盐研究所",
+    url: "https://www.sic.ac.cn/",
   },
-  { title: "锦波生物", url: "https://www.sxjbswyy.com/" },
+  { title: "北京科技大学", url: "https://www.ustb.edu.cn/" },
+  {
+    title: "西南交通大学附属医院(成都市第三人民医院)",
+    url: "https://www.cd3hospital.com/",
+  },
+  { title: "中国人民解放军总医院", url: "https://www.plagh.com.cn/" },
+  {
+    title: "山西锦波生物医药股份有限公司",
+    url: "https://www.sxjbswyy.com/",
+  },
+  {
+    title: "嘉思特医疗器材(天津)股份有限公司",
+    url: "https://www.justmedical.cn/",
+  },
+  { title: "同方知网数字科技有限公司", url: "https://www.cnki.net/" },
 ];
 const operationPartners: FooterPartner[] = [
   { title: "四川大学材料基因工程研究中心" },
