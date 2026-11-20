@@ -18,8 +18,8 @@ const defaultConstructionPartners: FooterPartner[] = [
   },
   { title: "北京科技大学", url: "https://www.ustb.edu.cn/" },
   {
-    title: "西南交通大学附属医院(成都市第三人民医院)",
-    url: "https://www.cd3hospital.com/",
+    title: "西安交通大学第一附属医院",
+    url: "https://www.dyyy.xjtu.edu.cn/",
   },
   { title: "中国人民解放军总医院", url: "https://www.plagh.com.cn/" },
   {
