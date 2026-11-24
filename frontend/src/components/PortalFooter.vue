@@ -21,7 +21,10 @@ const defaultConstructionPartners: FooterPartner[] = [
     title: "西安交通大学第一附属医院",
     url: "https://www.dyyy.xjtu.edu.cn/",
   },
-  { title: "中国人民解放军总医院", url: "https://www.plagh.com.cn/" },
+  {
+    title: "中国人民解放军总医院第四医学中心",
+    url: "https://www.plagh.com.cn/",
+  },
   {
     title: "山西锦波生物医药股份有限公司",
     url: "https://www.sxjbswyy.com/",
