@@ -80,7 +80,7 @@ export async function initialize() {
 }
 export async function upload(
   file: File,
-  purpose: "image" | "attachment" = "image",
+  purpose: "image" | "attachment" | "video" = "image",
 ) {
   const form = new FormData();
   form.append("file", file);

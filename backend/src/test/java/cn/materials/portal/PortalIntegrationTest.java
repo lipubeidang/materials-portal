@@ -966,6 +966,88 @@ class PortalIntegrationTest {
   }
 
   @Test
+  void richTablesAndVideosSurviveDraftAndPublicationWithSafeMarkup() throws Exception {
+    var operator = login("operator", "Test-Operator-2026!");
+    byte[] mp4 = { 0, 0, 0, 20, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm', 0, 0, 0, 0, 'm', 'p', '4', '2' };
+    var uploaded = mvc.perform(
+      multipart("/api/operator/media")
+        .file(new MockMultipartFile("file", "clip.mp4", "video/mp4", mp4))
+        .param("purpose", "video")
+        .cookie(operator.cookie())
+        .header("Origin", "http://localhost:5173")
+        .header("X-CSRF-Token", operator.csrf())
+    ).andExpect(status().isOk()).andExpect(jsonPath("$.mime").value("video/mp4")).andReturn();
+    String mediaUrl = str(s.decode(uploaded.getResponse().getContentAsString()), "url");
+    mvc.perform(
+      multipart("/api/operator/media")
+        .file(new MockMultipartFile("file", "invalid.mp4", "video/mp4", new byte[] { 1 }))
+        .param("purpose", "video")
+        .cookie(operator.cookie())
+        .header("Origin", "http://localhost:5173")
+        .header("X-CSRF-Token", operator.csrf())
+    ).andExpect(status().isBadRequest());
+    mvc.perform(get(mediaUrl)).andExpect(status().isNotFound());
+    mvc.perform(get(mediaUrl).cookie(operator.cookie()).header("Range", "bytes=0-7"))
+      .andExpect(status().isPartialContent())
+      .andExpect(header().string("Content-Range", "bytes 0-7/20"))
+      .andExpect(content().bytes(Arrays.copyOf(mp4, 8)));
+
+    var article = article("表格与视频");
+    article.put("body", """
+      <table><tbody><tr>
+        <th colspan="2" colwidth="120,80" data-cell-background="#ffddaa" data-text-align="center" style="display:none">表格标题</th>
+      </tr><tr>
+        <td data-cell-background="invalid" onmouseover="blocked()">正文</td><td>第二列</td>
+      </tr></tbody></table>
+      <video src="%s" autoplay onerror="blocked()"></video>
+      <video src="https://media.example.com/clip.mp4"></video>
+      <video src="javascript:blocked()"></video>
+      <video src="http://media.example.com/plain.mp4"></video>
+      <video src="//media.example.com/relative.mp4"></video>
+      <iframe src="https://media.example.com/embed"></iframe>
+      """.formatted(mediaUrl));
+    var saved = mvc.perform(write("/api/operator/contents", operator, article))
+      .andExpect(status().isOk()).andReturn();
+    String id = str(s.decode(saved.getResponse().getContentAsString()), "id");
+    var draft = mvc.perform(get("/api/operator/contents/" + id).cookie(operator.cookie()))
+      .andExpect(status().isOk()).andReturn();
+    String body = str(s.decode(draft.getResponse().getContentAsString()), "body");
+    var html = org.jsoup.Jsoup.parseBodyFragment(body);
+    var cell = html.selectFirst("table th");
+    assertNotNull(cell);
+    assertEquals("2", cell.attr("colspan"));
+    assertEquals("120,80", cell.attr("colwidth"));
+    assertEquals("center", cell.attr("data-text-align"));
+    assertEquals("background-color:#ffddaa;min-width:200px;", cell.attr("style"));
+    assertEquals(
+      List.of(mediaUrl, "https://media.example.com/clip.mp4"),
+      html.select("video").eachAttr("src")
+    );
+    assertEquals(2, html.select("video[controls][playsinline][preload=metadata]").size());
+    assertTrue(html.select("iframe,[autoplay],[onerror],[onmouseover]").isEmpty());
+    assertFalse(html.selectFirst("td").hasAttr("data-cell-background"));
+    mvc.perform(get("/api/public/contents/" + id)).andExpect(status().isNotFound());
+    mvc.perform(write("/api/operator/contents/" + id + "/publish", operator, Map.of("version", 1)))
+      .andExpect(status().isOk());
+    mvc.perform(get("/api/public/contents/" + id))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.body").value(body));
+    mvc.perform(get(mediaUrl)).andExpect(status().isOk())
+      .andExpect(content().contentType("video/mp4"))
+      .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.startsWith("inline")));
+
+    var videoOnly = article("外部视频");
+    videoOnly.put("body", "<video src=\"https://media.example.com/clip.mp4\"></video>");
+    var outside = mvc.perform(write("/api/operator/contents", operator, videoOnly))
+      .andExpect(status().isOk()).andReturn();
+    String outsideId = str(s.decode(outside.getResponse().getContentAsString()), "id");
+    mvc.perform(write("/api/operator/contents/" + outsideId + "/publish", operator, Map.of("version", 1)))
+      .andExpect(status().isOk());
+    mvc.perform(write("/api/operator/contents/" + id + "/withdraw", operator, Map.of("version", 2)))
+      .andExpect(status().isOk());
+    mvc.perform(get(mediaUrl)).andExpect(status().isNotFound());
+  }
+
+  @Test
   void categoryCycleAndUnsafeUrlRejected() throws Exception {
     var op = login("operator", "Test-Operator-2026!");
     var c = s.one("SELECT * FROM categories WHERE id='news'");

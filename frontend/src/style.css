@@ -1206,14 +1206,42 @@ small,
   padding-left: 18px;
   color: #7c8b98;
 }
-.prose table {
+.prose table,
+.rich-body table {
   border-collapse: collapse;
+  margin: 16px 0;
+}
+.prose table {
   max-width: 100%;
 }
 .prose td,
-.prose th {
-  border: 1px solid #ccc;
-  padding: 8px;
+.prose th,
+.rich-body td,
+.rich-body th {
+  position: relative;
+  min-width: 48px;
+  border: 1px solid #c5d4df;
+  padding: 6px 8px;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.prose :is(td, th) > p,
+.rich-body :is(td, th) > p {
+  margin: 0;
+}
+.prose [data-text-align="left"],
+.rich-body [data-text-align="left"] {
+  text-align: left;
+}
+.prose video,
+.rich-body video {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
+.prose video {
+  margin: 20px 0;
 }
 .article-cover {
   max-width: 100%;

@@ -974,7 +974,7 @@ function fileSize(bytes: number) {
         <div class="editor-actions">
           <span role="status">{{
             uploadingMedia
-              ? "正在上传图片或附件…"
+              ? "正在上传文件…"
               : dirty
                 ? "有未保存修改"
                 : "修改已保存"

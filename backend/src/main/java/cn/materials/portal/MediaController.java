@@ -44,16 +44,17 @@ public class MediaController {
     HttpServletRequest request
   ) throws IOException {
     require(
-      Set.of("image", "attachment").contains(purpose),
+      Set.of("image", "attachment", "video").contains(purpose),
       400,
       "上传用途无效"
     );
-    long limit = purpose.equals("attachment") ? ATTACHMENT_LIMIT : IMAGE_LIMIT;
+    boolean video = purpose.equals("video");
+    long limit = purpose.equals("image") ? IMAGE_LIMIT : ATTACHMENT_LIMIT;
     require(
       !file.isEmpty() && file.getSize() <= limit,
       400,
-      purpose.equals("attachment")
-        ? "附件不能为空且不得超过 1 GB"
+      video ? "视频不能为空且不得超过 1 GB"
+        : purpose.equals("attachment") ? "附件不能为空且不得超过 1 GB"
         : "图片不能为空且不得超过 10 MB"
     );
     String name = validName(file.getOriginalFilename());
@@ -79,7 +80,11 @@ public class MediaController {
         400,
         "文件为空或大小超过限制"
       );
-      if (
+      if (video) {
+        require(lower.endsWith(".mp4") && isMp4(temporary), 400, "请上传有效的 MP4 视频");
+        mime = "video/mp4";
+        Files.move(temporary, target);
+      } else if (
         lower.endsWith(".png") ||
         lower.endsWith(".jpg") ||
         lower.endsWith(".jpeg")
@@ -218,6 +223,24 @@ public class MediaController {
     }
   }
 
+  private boolean isMp4(Path path) throws IOException {
+    try (var input = new DataInputStream(Files.newInputStream(path))) {
+      long boxSize = Integer.toUnsignedLong(input.readInt());
+      if (input.readInt() != 0x66747970 || boxSize < 16 || boxSize > 4096 || boxSize % 4 != 0)
+        return false;
+      byte[] brands = input.readNBytes((int) boxSize - 8);
+      if (brands.length != boxSize - 8) return false;
+      for (int i = 0; i < brands.length; i += 4) {
+        if (i == 4) continue; // Minor version, not a brand.
+        String brand = new String(brands, i, 4, StandardCharsets.US_ASCII);
+        if (brand.matches("iso[m2-9]|mp4[12]|avc1|M4V |dash")) return true;
+      }
+      return false;
+    } catch (EOFException e) {
+      return false;
+    }
+  }
+
   boolean startsWith(byte[] actual, int... expected) {
     if (actual.length < expected.length) return false;
     for (int i = 0; i < expected.length; i++) if (
@@ -299,7 +322,7 @@ public class MediaController {
     Path path = directory.resolve(id);
     require(Files.exists(path), 404, "文件不存在");
     var disposition = (
-      mime.startsWith("image/")
+      mime.startsWith("image/") || mime.equals("video/mp4")
         ? ContentDisposition.inline()
         : ContentDisposition.attachment()
     )

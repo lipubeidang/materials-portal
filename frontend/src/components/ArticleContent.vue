@@ -5,6 +5,7 @@ import { industryLabel } from "../industry";
 
 const props = defineProps<{ item: Row }>();
 const failedImages = ref(new Set<string>());
+const videoFailed = ref(false);
 const bodyImages = computed(() => {
   const document = new DOMParser().parseFromString(
     props.item.body || "",
@@ -49,8 +50,14 @@ const documents = computed(() =>
 );
 watch(
   () => props.item,
-  () => (failedImages.value = new Set()),
+  () => {
+    failedImages.value = new Set();
+    videoFailed.value = false;
+  },
 );
+function handleMediaError(event: Event) {
+  if (event.target instanceof HTMLVideoElement) videoFailed.value = true;
+}
 function imageFailed(url: string) {
   failedImages.value.add(url);
 }
@@ -102,7 +109,10 @@ function fileBadge(file: Row) {
         >
       </a>
     </figure>
-    <div class="prose reading-body" v-html="item.body"></div>
+    <div class="prose reading-body" v-html="item.body" @error.capture="handleMediaError"></div>
+    <p v-if="videoFailed" class="inline-error" role="status">
+      正文中的视频无法播放。请重试，或联系发布者提供 H.264 视频 / AAC 音频的 MP4。
+    </p>
     <section
       v-if="imageAttachments.length"
       class="article-images"
@@ -384,6 +394,9 @@ function fileBadge(file: Row) {
 .reading-body :deep(table) {
   display: block;
   overflow-x: auto;
+}
+.reading-body :deep(:is(td, th) > p) {
+  margin: 0;
 }
 .reading-body :deep(pre) {
   overflow-x: auto;
