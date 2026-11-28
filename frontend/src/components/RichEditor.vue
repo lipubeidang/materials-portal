@@ -1,11 +1,21 @@
 <script setup lang="ts">
 import { watch, onBeforeUnmount, ref, computed, nextTick } from "vue";
 import { NodeSelection } from "@tiptap/pm/state";
+import { isInTable, selectedRect } from "@tiptap/pm/tables";
 import { Extension, Mark, mergeAttributes } from "@tiptap/core";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
+import { TableKit } from "@tiptap/extension-table";
 import { upload, notify } from "../api";
+import {
+  canLoadLocalVideo,
+  compatibleVideoFormat,
+  normalizePastedTable,
+  RichVideo,
+  TableCellFormat,
+  videoSource,
+} from "./rich-media";
 
 const alignments = ["left", "center", "right", "justify"] as const;
 const TextAlignment = Extension.create({
@@ -13,12 +23,16 @@ const TextAlignment = Extension.create({
   addGlobalAttributes() {
     return [
       {
-        types: ["heading", "paragraph"],
+        types: ["heading", "paragraph", "tableCell", "tableHeader"],
         attributes: {
           textAlign: {
             default: null,
             parseHTML: (element) => {
-              const value = element.getAttribute("data-text-align");
+              const value =
+                element.getAttribute("data-text-align") ||
+                (element.closest("table")
+                  ? element.style.textAlign || element.getAttribute("align")
+                  : "");
               return alignments.includes(value as (typeof alignments)[number])
                 ? value
                 : null;
@@ -94,6 +108,25 @@ const emit = defineEmits<{
 }>();
 const fileInput = ref<HTMLInputElement>();
 const uploading = ref(false);
+const uploadingVideo = ref(false);
+const tableDialog = ref<HTMLDialogElement>();
+const videoDialog = ref<HTMLDialogElement>();
+const tableInputError = ref("");
+const videoInputError = ref("");
+const rows = ref(3);
+const columns = ref(3);
+const columnWidth = ref(120);
+const videoUrl = ref("");
+const inTable = ref(false);
+const tableActions = {
+  addRowAfter: "下方插行",
+  deleteRow: "删除行",
+  addColumnAfter: "右侧插列",
+  deleteColumn: "删除列",
+  mergeCells: "合并单元格",
+  splitCell: "拆分单元格",
+  deleteTable: "删除表格",
+} as const;
 const positionDialog = ref<HTMLDialogElement>();
 const placement = ref<{
   src: string;
@@ -104,7 +137,11 @@ const placement = ref<{
 const chosenPosition = ref(0);
 const selectedImage = ref<{ src: string; alt: string } | null>(null);
 const locked = computed(
-  () => props.disabled || uploading.value || !!placement.value,
+  () =>
+    props.disabled ||
+    uploading.value ||
+    uploadingVideo.value ||
+    !!placement.value,
 );
 const textColors = [
   { value: "", label: "自动颜色" },
@@ -149,10 +186,21 @@ const fontFamilies = [
 let uploadPosition = 0;
 let disposed = false;
 const editor = useEditor({
-  extensions: [StarterKit, TextAlignment, InlineFormat, Image],
+  extensions: [
+    StarterKit,
+    TextAlignment,
+    InlineFormat,
+    Image,
+    RichVideo,
+    TableCellFormat,
+    TableKit.configure({ table: { resizable: true, cellMinWidth: 48 } }),
+  ],
   content: props.modelValue,
   editable: !props.disabled,
   onUpdate: ({ editor }) => emit("update:modelValue", editor.getHTML()),
+  onTransaction: ({ editor }) => {
+    inTable.value = isInTable(editor.state);
+  },
   onSelectionUpdate: ({ editor }) => {
     const selection = editor.state.selection;
     selectedImage.value =
@@ -161,6 +209,7 @@ const editor = useEditor({
         : null;
   },
   editorProps: {
+    transformPastedHTML: normalizePastedTable,
     attributes: {
       class: "rich-body",
       role: "textbox",
@@ -170,6 +219,7 @@ const editor = useEditor({
     handlePaste: (view, event) => {
       if (locked.value) return false;
       const clipboard = event.clipboardData;
+      if (/<table\b/i.test(clipboard?.getData("text/html") || "")) return false;
       const item = Array.from(clipboard?.items || []).find(
         (entry) => entry.kind === "file" && entry.type.startsWith("image/"),
       );
@@ -389,6 +439,123 @@ function setAlignment(value: string) {
     .updateAttributes("heading", { textAlign: value })
     .run();
 }
+function insertTable() {
+  if (
+    ![rows.value, columns.value].every(
+      (n) => Number.isInteger(n) && n >= 1 && n <= 30,
+    )
+  ) {
+    tableInputError.value = "表格行数和列数须为 1 到 30 的整数";
+    return;
+  }
+  tableDialog.value?.close();
+  editor.value
+    ?.chain()
+    .focus()
+    .insertTable({
+      rows: rows.value,
+      cols: columns.value,
+      withHeaderRow: false,
+    })
+    .run();
+}
+function formatCells(
+  attribute: "backgroundColor" | "textAlign",
+  value: string | null,
+) {
+  editor.value?.chain().focus().setCellAttribute(attribute, value).run();
+}
+function resizeColumns() {
+  const instance = editor.value;
+  const width = columnWidth.value;
+  if (!instance || !inTable.value) return;
+  if (!Number.isInteger(width) || width < 48 || width > 1200) {
+    notify("列宽须为 48 到 1200 像素", true);
+    return;
+  }
+  const { map, table, tableStart, left, right } = selectedRect(instance.state);
+  const transaction = instance.state.tr;
+  const cells = new Set<number>();
+  for (let row = 0; row < map.height; row++)
+    for (let column = left; column < right; column++)
+      cells.add(map.map[row * map.width + column]);
+  for (const offset of cells) {
+    const cell = table.nodeAt(offset);
+    if (!cell) continue;
+    const bounds = map.findCell(offset);
+    const widths = Array.from(
+      { length: cell.attrs.colspan },
+      (_, index) => cell.attrs.colwidth?.[index] || 0,
+    );
+    for (
+      let column = Math.max(left, bounds.left);
+      column < Math.min(right, bounds.right);
+      column++
+    )
+      widths[column - bounds.left] = width;
+    transaction.setNodeMarkup(tableStart + offset, null, {
+      ...cell.attrs,
+      colwidth: widths,
+    });
+  }
+  instance.view.dispatch(transaction);
+  instance.commands.focus();
+}
+function insertVideoUrl() {
+  const source = videoSource(videoUrl.value);
+  if (!source || !source.startsWith("https://")) {
+    videoInputError.value = "请输入 HTTPS 视频直链";
+    return;
+  }
+  videoDialog.value?.close();
+  videoUrl.value = "";
+  editor.value
+    ?.chain()
+    .focus()
+    .insertContent({ type: "richVideo", attrs: { src: source } })
+    .run();
+}
+async function uploadVideo(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file || locked.value) return;
+  if (!/\.mp4$/i.test(file.name) || file.size === 0 || file.size > 1024 ** 3) {
+    videoInputError.value = "请选择不超过 1 GB 的 MP4 视频";
+    return;
+  }
+  videoDialog.value?.close();
+  uploadingVideo.value = true;
+  emit("busy", true);
+  try {
+    if (!(await canLoadLocalVideo(file))) {
+      if (!disposed)
+        notify(
+          "当前浏览器无法读取该视频。请转换为 " +
+            compatibleVideoFormat +
+            " 后重试。",
+          true,
+        );
+      return;
+    }
+    if (disposed) return;
+    const result = await upload(file, "video");
+    if (disposed) return;
+    editor.value?.commands.insertContent({
+      type: "richVideo",
+      attrs: { src: result.url },
+    });
+  } catch (error) {
+    if (!disposed) notify((error as Error).message, true);
+  } finally {
+    if (!disposed && uploadingVideo.value) {
+      uploadingVideo.value = false;
+      emit("busy", false);
+      await nextTick();
+      if (!disposed) editor.value?.commands.focus();
+    }
+  }
+}
 function setInlineFormat(
   attribute: "textColor" | "highlight" | "fontSize" | "fontFamily",
   value: string,
@@ -413,7 +580,11 @@ function clearFormatting() {
 }
 </script>
 <template>
-  <div v-if="editor" class="rich-editor" :aria-busy="uploading">
+  <div
+    v-if="editor"
+    class="rich-editor"
+    :aria-busy="uploading || uploadingVideo"
+  >
     <fieldset
       class="rich-toolbar"
       :disabled="locked"
@@ -647,6 +818,20 @@ function clearFormatting() {
       >
         {{ uploading ? "图片上传中…" : "＋ 插入正文图片" }}
       </button>
+      <button
+        type="button"
+        @mousedown.prevent
+        @click="tableDialog?.showModal()"
+      >
+        插入表格
+      </button>
+      <button
+        type="button"
+        @mousedown.prevent
+        @click="videoDialog?.showModal()"
+      >
+        插入视频
+      </button>
       <button type="button" @click="clearFormatting">清除格式</button>
       <input
         ref="fileInput"
@@ -655,6 +840,82 @@ function clearFormatting() {
         hidden
         @change="image"
       />
+    </fieldset>
+    <fieldset
+      v-if="inTable"
+      class="rich-toolbar"
+      :disabled="locked"
+      aria-label="表格编辑工具栏"
+    >
+      <button
+        v-for="(label, action) in tableActions"
+        :key="action"
+        type="button"
+        :disabled="!editor.can()[action]()"
+        @mousedown.prevent
+        @click="editor.chain().focus()[action]().run()"
+      >
+        {{ label }}
+      </button>
+      <label class="table-color">
+        单元格底色
+        <input
+          type="color"
+          :value="
+            editor.getAttributes('tableCell').backgroundColor ||
+            editor.getAttributes('tableHeader').backgroundColor ||
+            '#ffffff'
+          "
+          @change="
+            formatCells(
+              'backgroundColor',
+              ($event.target as HTMLInputElement).value,
+            )
+          "
+        />
+      </label>
+      <button
+        type="button"
+        @mousedown.prevent
+        @click="formatCells('backgroundColor', null)"
+      >
+        清除底色
+      </button>
+      <label class="toolbar-select">
+        <select
+          aria-label="单元格对齐"
+          :value="
+            editor.getAttributes('tableCell').textAlign ||
+            editor.getAttributes('tableHeader').textAlign ||
+            ''
+          "
+          @change="
+            formatCells(
+              'textAlign',
+              ($event.target as HTMLSelectElement).value || null,
+            )
+          "
+        >
+          <option value="">默认对齐</option>
+          <option value="left">左对齐</option>
+          <option value="center">居中</option>
+          <option value="right">右对齐</option>
+          <option value="justify">两端对齐</option>
+        </select>
+      </label>
+      <label class="table-width">
+        列宽
+        <input
+          v-model.number="columnWidth"
+          type="text"
+          inputmode="numeric"
+          aria-label="列宽（像素）"
+          @keydown.enter.prevent="resizeColumns"
+        />
+      </label>
+      <button type="button" @mousedown.prevent @click="resizeColumns">
+        应用列宽
+      </button>
     </fieldset>
     <div v-if="selectedImage" class="image-actions">
       <span>已选中正文图片</span>
@@ -671,11 +932,84 @@ function clearFormatting() {
     <EditorContent :editor="editor" />
     <div class="editor-foot" role="status">
       {{
-        uploading
-          ? "正在上传图片，完成后即可保存或发布。"
-          : "可在正文中直接粘贴截图或复制的图片；也可先确定光标位置，再通过工具栏插入。支持 PNG / JPG，最大 10 MB。"
+        uploadingVideo
+          ? "正在上传视频，完成后即可保存或发布。"
+          : uploading
+            ? "正在上传图片，完成后即可保存或发布。"
+            : "可在正文中直接粘贴截图或复制的图片；也可先确定光标位置，再通过工具栏插入。支持 PNG / JPG，最大 10 MB。"
       }}
     </div>
+    <dialog
+      ref="tableDialog"
+      class="image-position-dialog rich-insert-dialog"
+      aria-labelledby="insert-table-title"
+      @close="tableInputError = ''"
+    >
+      <div class="position-heading">
+        <h3 id="insert-table-title">插入表格</h3>
+      </div>
+      <label
+        >行数<input
+          v-model.number="rows"
+          type="text"
+          inputmode="numeric"
+          @keydown.enter.prevent="insertTable"
+      /></label>
+      <label
+        >列数<input
+          v-model.number="columns"
+          type="text"
+          inputmode="numeric"
+          @keydown.enter.prevent="insertTable"
+      /></label>
+      <p v-if="tableInputError" class="inline-error" role="alert">
+        {{ tableInputError }}
+      </p>
+      <div class="position-footer">
+        <button type="button" class="btn" @click="tableDialog?.close()">
+          取消
+        </button>
+        <button type="button" class="btn primary" @click="insertTable">
+          插入
+        </button>
+      </div>
+    </dialog>
+    <dialog
+      ref="videoDialog"
+      class="image-position-dialog rich-insert-dialog"
+      aria-labelledby="insert-video-title"
+      @close="videoInputError = ''"
+    >
+      <div class="position-heading">
+        <h3 id="insert-video-title">插入视频</h3>
+      </div>
+      <label
+        >本地视频（MP4，最大 1 GB）<input
+          type="file"
+          accept=".mp4,video/mp4"
+          @change="uploadVideo"
+      /></label>
+      <p>为兼容更多浏览器，建议使用 {{ compatibleVideoFormat }}。</p>
+      <label
+        >HTTPS 视频直链<input
+          v-model="videoUrl"
+          type="text"
+          inputmode="url"
+          placeholder="https://example.com/video.mp4"
+          @keydown.enter.prevent="insertVideoUrl"
+      /></label>
+      <p v-if="videoInputError" class="inline-error" role="alert">
+        {{ videoInputError }}
+      </p>
+      <div class="position-footer">
+        <button type="button" class="btn" @click="videoDialog?.close()">
+          取消
+        </button>
+        <button type="button" class="btn primary" @click="insertVideoUrl">
+          插入链接
+        </button>
+      </div>
+    </dialog>
     <dialog
       ref="positionDialog"
       class="image-position-dialog"
@@ -859,6 +1193,62 @@ function clearFormatting() {
 }
 .editor-foot {
   line-height: 1.7;
+}
+.rich-insert-dialog > label {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0;
+}
+.rich-insert-dialog .inline-error {
+  color: #a53535;
+}
+.table-color,
+.table-width {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+}
+.table-color input {
+  width: 34px;
+  height: 32px;
+  padding: 3px;
+}
+.table-width input {
+  width: 76px;
+  height: 32px;
+}
+:deep(.rich-body .tableWrapper) {
+  max-width: 100%;
+  overflow-x: auto;
+}
+:deep(.rich-body .selectedCell::after) {
+  position: absolute;
+  inset: 0;
+  background: #4595cf33;
+  pointer-events: none;
+  content: "";
+}
+:deep(.rich-body .column-resize-handle) {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  width: 4px;
+  background: #4595cf;
+  pointer-events: none;
+}
+:deep(.rich-body.resize-cursor) {
+  cursor: col-resize;
+}
+:deep(.rich-body .rich-video) {
+  margin: 16px 0;
+}
+:deep(.rich-body .rich-video-remove) {
+  margin-top: 6px;
+}
+:deep(.rich-body[contenteditable="false"] .rich-video-remove) {
+  display: none;
 }
 :deep(.rich-body img) {
   display: block;

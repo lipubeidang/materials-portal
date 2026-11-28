@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ContentService {
+  private static final String MANAGED_MEDIA = "/api/media/[a-f0-9-]{36}";
 
   final Store s;
 
@@ -82,6 +83,11 @@ public class ContentService {
     );
     var safe = Safelist.relaxed()
       .addTags("hr")
+      .addTags("video")
+      .addAttributes("video", "src")
+      .addProtocols("video", "src", "https")
+      .addAttributes("td", "colwidth", "data-colwidth", "data-cell-background", "data-text-align")
+      .addAttributes("th", "colwidth", "data-colwidth", "data-cell-background", "data-text-align")
       .addAttributes("p", "data-text-align")
       .addAttributes("h2", "data-text-align")
       .addAttributes("h3", "data-text-align")
@@ -102,7 +108,30 @@ public class ContentService {
     );
     // Embedded images are always managed files; never accept arbitrary remote tracking images.
     doc.select("img").forEach(img -> {
-      if (!img.attr("src").matches("/api/media/[a-f0-9-]{36}")) img.remove();
+      if (!img.attr("src").matches(MANAGED_MEDIA)) img.remove();
+    });
+    doc.select("video").forEach(video -> {
+      if (!safeVideoSource(video.attr("src"))) {
+        video.remove();
+        return;
+      }
+      video.empty();
+      video.attr("controls", "").attr("playsinline", "").attr("preload", "metadata");
+    });
+    doc.select("td,th").forEach(cell -> {
+      String background = cell.attr("data-cell-background");
+      String widths = cell.hasAttr("colwidth") ? cell.attr("colwidth") : cell.attr("data-colwidth");
+      StringBuilder style = new StringBuilder();
+      if (background.matches("#[0-9a-fA-F]{6}"))
+        style.append("background-color:").append(background).append(';');
+      else cell.removeAttr("data-cell-background");
+      cell.removeAttr("data-colwidth");
+      if (widths.matches("\\d{1,4}(,\\d{1,4}){0,99}")) {
+        cell.attr("colwidth", widths);
+        int width = Arrays.stream(widths.split(",")).mapToInt(Integer::parseInt).sum();
+        if (width > 0) style.append("min-width:").append(width).append("px;");
+      } else cell.removeAttr("colwidth");
+      if (!style.isEmpty()) cell.attr("style", style.toString());
     });
     doc.select("a").forEach(link -> {
       if (!safeUrl(link.attr("href"))) link.removeAttr("href");
@@ -272,9 +301,30 @@ public class ContentService {
 
   Set<String> files(Map<String, Object> data) {
     Set<String> ids = imageFiles(data);
+    ids.addAll(videoFiles(data));
     Object raw = data.get("attachments");
     if (raw instanceof List<?> list) for (Object id : list)
       ids.add(String.valueOf(id));
+    return ids;
+  }
+
+  private static boolean safeVideoSource(String src) {
+    if (src.matches(MANAGED_MEDIA)) return true;
+    try {
+      var uri = java.net.URI.create(src);
+      return "https".equalsIgnoreCase(uri.getScheme()) &&
+        uri.getHost() != null && uri.getRawUserInfo() == null;
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
+  }
+
+  private Set<String> videoFiles(Map<String, Object> data) {
+    Set<String> ids = new HashSet<>();
+    for (var video : Jsoup.parseBodyFragment(str(data, "body")).select("video[src]")) {
+      String src = video.attr("src");
+      if (src.matches(MANAGED_MEDIA)) ids.add(src.substring("/api/media/".length()));
+    }
     return ids;
   }
 
@@ -459,6 +509,7 @@ public class ContentService {
       time
     );
     Set<String> images = imageFiles(payload);
+    Set<String> videos = videoFiles(payload);
     for (String file : files(payload)) {
       var media = s.one("SELECT mime FROM media_files WHERE id=?", file);
       require(media != null, 400, "文件不存在");
@@ -466,6 +517,11 @@ public class ContentService {
         !images.contains(file) || str(media, "mime").startsWith("image/"),
         400,
         "封面、首页图片和正文图片必须使用图片文件"
+      );
+      require(
+        !videos.contains(file) || "video/mp4".equals(str(media, "mime")),
+        400,
+        "正文视频必须使用 MP4 视频文件"
       );
       s.update("INSERT INTO revision_media VALUES(?,?)", revision, file);
     }
@@ -538,7 +594,8 @@ public class ContentService {
           "请填写介绍正文或访问地址"
         );
         else require(
-          !Jsoup.parse(str(v, "body")).text().isBlank() || !files(v).isEmpty(),
+          !Jsoup.parse(str(v, "body")).text().isBlank() || !files(v).isEmpty() ||
+            Jsoup.parseBodyFragment(str(v, "body")).selectFirst("video[src]") != null,
           400,
           "请填写正文或上传附件"
         );
