@@ -37,6 +37,8 @@ docker compose -f deploy/compose.yml stop
 
 Docker/MySQL/HTTPS 部署仍须在目标 Linux 服务器验证。Windows 的 `.cmd` 和 `.ps1` 本地启动脚本不提交到此仓库。
 
+公网 HTTPS 入口、旧地址跳转、证书续期与回滚见 [HTTPS 部署说明](docs/HTTPS-DEPLOYMENT.md)。
+
 ## 已实现的功能
 
 ### 门户
